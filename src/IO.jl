@@ -9,7 +9,7 @@ function writeCheckpoint!(filename::String, mc::MonteCarlo{Lattice{D,N}}) where 
     end
 end
 
-function readCheckpoint()
+function readCheckpoint(filename::String)
     h5open(filename, "r") do f
         data = IOBuffer(read(f["checkpoint"]))
         return deserialize(data)
@@ -81,6 +81,49 @@ function readLattice(fn::Union{HDF5.File,HDF5.Group})
     return lattice
 end
 
+function writeMonteCarloParameters!(fn::Union{HDF5.File,HDF5.Group}, mcp::MonteCarloParameters{U}) where {U}
+    p = create_group(fn, "parameters")
+    #Simulation parameters
+    p["beta"] = mcp.beta
+    p["thermalizationSweeps"] = mcp.thermalizationSweeps
+    p["measurementSweeps"] = mcp.measurementSweeps
+    p["measurementRate"] = mcp.measurementRate
+    p["microcanonicalRoundsPerSweep"] = mcp.microcanonicalRoundsPerSweep
+    p["replicaExchangeRate"] = mcp.replicaExchangeRate
+    p["randomizeInitialConfiguration"] = mcp.randomizeInitialConfiguration
+    p["reportInterval"] = mcp.reportInterval
+    p["checkpointInterval"] = mcp.checkpointInterval
+
+    #Technical parameters
+    p["seed"] = mcp.seed
+    p["sweep"] = mcp.sweep
+
+    p["updateFunction"] = String(Symbol(mcp.updateFunction))
+
+    return nothing
+end
+
+function readMonteCarloParameters(fn::Union{HDF5.File,HDF5.Group})
+    p = fn["parameters"]
+    mcp = MonteCarloParameters(
+        read(p["beta"]),
+        read(p["thermalizationSweeps"]),
+        read(p["measurementSweeps"]),
+        read(p["measurementRate"]),
+        read(p["microcanonicalRoundsPerSweep"]),
+        read(p["replicaExchangeRate"]),
+        read(p["randomizeInitialConfiguration"]),
+        read(p["reportInterval"]),
+        read(p["checkpointInterval"]),
+        copy(Random.GLOBAL_RNG),
+        read(p["seed"]),
+        read(p["sweep"]),
+        getfield(Main, Symbol(read(p["updateFunction"])))
+    )
+    Random.seed!(mcp.rng, mcp.seed)
+    return mcp
+end
+
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, mean::Float64, error::Float64)
     fn["$(path)/mean"] = mean
     fn["$(path)/error"] = error
@@ -104,7 +147,7 @@ function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::Vector{
 end
 
 function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables, beta::Float64, N::Float64)
-    o = create_group(fn, "obs")
+    o = create_group(fn, "observables")
 
     for field in fieldnames(Observables)
         save(o, field, getfield(a, field))
@@ -120,32 +163,27 @@ function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables, be
     save(o, "specificHeat", heat, dheat)
 end
 
+function readObservables(fn::Union{HDF5.File,HDF5.Group})
+    o = fn["observables"]
+    for field in fieldnames(Observables)
+    end
+end
+
 function writeMonteCarlo!(filename::String, mc::MonteCarlo{Lattice{D,N}}) where {D,N}
     h5open(filename, "w") do f
         g = create_group(f, "mc")
-        #Simulation parameters
-        g["beta"] = mc.beta
-        g["thermalizationSweeps"] = mc.thermalizationSweeps
-        g["measurementSweeps"] = mc.measurementSweeps
-        g["measurementRate"] = mc.measurementRate
-        g["microcanonicalRoundsPerSweep"] = mc.microcanonicalRoundsPerSweep
-        g["replicaExchangeRate"] = mc.replicaExchangeRate
-        g["reportInterval"] = mc.reportInterval
-        g["checkpointInterval"] = mc.checkpointInterval
-
-        #Technical parameters
-        g["seed"] = mc.seed
-        g["sweep"] = mc.sweep
-        g["storeAllMeasurements"] = mc.storeAllMeasurements
-
         writeLattice!(g, mc.lattice)
+        writeMonteCarloParameters!(g, mc.parameters)
         writeObservables!(g, mc.observables, mc.beta, mc.lattice.length)
     end
 end
 
 function readMonteCarlo(filename::String)
     h5open(filename, "r") do f
-        data = IOBuffer(read(f["checkpoint"]))
-        return deserialize(data)
+        g = f["mc"]
+        lattice = readLattice(g)
+        parameters = readMonteCarloParameters(g)
+        observables = readMonteCarloObservables(g)
+        return MonteCarlo(lattice, parameters, observables)
     end
 end

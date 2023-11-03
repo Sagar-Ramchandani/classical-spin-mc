@@ -21,6 +21,7 @@ export MonteCarlo, MonteCarloStatistics, MonteCarloParameters, run!, anneal, ini
 include("IO.jl")
 export writeUnitcell!, readUnitcell,
     writeLattice!, readLattice,
+    writeMonteCarloParameters!, readMonteCarloParameters,
     writeMonteCarlo!, readMonteCarlo
 
 using Reexport

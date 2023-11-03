@@ -77,7 +77,6 @@ function MonteCarlo(lattice::Lattice{D,N}, parameters::Tuple{Float64,Int64,Int64
     pm = MonteCarloParameters(parameters...)
     obs = Observables(lattice, storeAllMeasurements)
     return MonteCarlo(lattice, pm, obs)
-
 end
 
 #Add a warning that this update only works if the lattice is aleady initialized
