@@ -19,7 +19,9 @@ include("MonteCarlo.jl")
 export MonteCarlo, MonteCarloStatistics, MonteCarloParameters, run!, anneal, initSpinConfiguration!, localSweep, microcanonicalSweep!, replicaExchange!
 
 include("IO.jl")
-export writeUnitcell!,readUnitcell,writeMonteCarlo!, readMonteCarlo
+export writeUnitcell!, readUnitcell,
+    writeLattice!, readLattice,
+    writeMonteCarlo!, readMonteCarlo
 
 using Reexport
 @reexport using BinningAnalysis

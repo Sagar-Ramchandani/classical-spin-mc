@@ -60,24 +60,25 @@ end
 
 function writeLattice!(fn::Union{HDF5.File,HDF5.Group}, lattice::Lattice{D,N}) where {D,N}
     """
-    Note: Still missing interactionSites,interactionMatrices,
-    interactionOnsite,interactionField. 
-    Store these directly or load them in using the lattice
-    generation function. 
-    In case of later, possibly remove storing site positions.
+    Only store information that cannot be reconstructed 
+    with the lattice constructor
     """
     l = create_group(fn, "lattice")
     l["L"] = collect(lattice.size)
-    l["length"] = collect(lattice.length)
     writeUnitcell!(l, lattice.unitcell)
-    ##Possibly change to a single large write of flattened data
-    #for i in 1:length(lattice)
-    #    l["sitePositions/"*string(i)] = collect(lattice.sitePositions[i])
-    #end
-    l["spins"] = reduce(vcat, lattice.spins)
+    l["spins"] = reduce(hcat, lattice.spins)
+    return nothing
 end
-function readLattice()
 
+function readLattice(fn::Union{HDF5.File,HDF5.Group})
+    """
+    Reconstruct information using the lattice constructor
+    """
+    l = fn["lattice"]
+    spins = Vector{SVector{3,Float64}}(eachcol(read(l["spins"])))
+    lattice = Lattice(readUnitcell(l), Tuple(read(l["L"])))
+    lattice.spins = spins
+    return lattice
 end
 
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, mean::Float64, error::Float64)
