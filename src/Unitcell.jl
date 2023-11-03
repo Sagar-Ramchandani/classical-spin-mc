@@ -6,8 +6,8 @@ struct UnitCell{D}
     interactions::Vector{Tuple{Pair{Int,Int},NTuple{D,Int},SMatrix{3,3,Float64,9}}}
     interactionsOnsite::Vector{SMatrix{3,3,Float64,9}}
     interactionsField::Vector{SVector{3,Float64}}
-
 end
+
 #Constructor that accepts D number of SVectors as input to use as primitives. 
 function UnitCell(primitive::Vararg{SVector{D,Float64},D}) where {D}
     return UnitCell{D}(primitive, Vector{SVector{D,Float64}}(undef, 0), Vector{Tuple{Pair{Int,Int},NTuple{D,Int},SMatrix{3,3,Float64,9}}}(undef, 0), Vector{SMatrix{3,3,Float64,9}}(undef, 0), Vector{SVector{3,Float64}}(undef, 0))
@@ -16,6 +16,10 @@ end
 #Constructor with support for NTuples that get converted to SVectors.
 function UnitCell(primitive::Vararg{NTuple{D,Float64},D}) where {D}
     return UnitCell(SVector.(primitive)...)
+end
+
+function Base.:show(io::IO, uc::UnitCell{D}) where {D}
+    println(io,"$(2)D Unitcell with $(length(uc.basis)) sites and $(length(uc.interactions)) interactions")
 end
 
 """

@@ -20,6 +20,10 @@ mutable struct MonteCarloStatistics
     MonteCarloStatistics() = new(0, 0, 0, 0, 0, time())
 end
 
+function Base.:show(io::IO,statistics::MonteCarloStatistics)
+    println(io,"MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $(statistics.initializationTime)")
+end
+
 mutable struct MonteCarloParameters{U<:AbstractRNG}
     beta::Float64
     thermalizationSweeps::Int
@@ -36,6 +40,10 @@ mutable struct MonteCarloParameters{U<:AbstractRNG}
     sweep::Int
 
     updateFunction::Function
+end
+
+function Base.:show(io::IO,parameters::MonteCarloParameters)
+    println(io,"MonteCarloParameters with β=$(parameters.beta) and update function $(parameters.updateFunction)")
 end
 
 function MonteCarloParameters(
@@ -64,6 +72,10 @@ mutable struct MonteCarlo{T<:Lattice}
     parameters::MonteCarloParameters
     statistics::MonteCarloStatistics
     observables::Observables
+end
+
+function Base.:show(io::IO,mc::MonteCarlo{T}) where {T<:Lattice}
+    println(io,"MonteCarlo with β=$(mc.parameters.beta) and update function: $(mc.parameters.updateFunction)")
 end
 
 function MonteCarlo(lattice::T, parameters::MonteCarloParameters,

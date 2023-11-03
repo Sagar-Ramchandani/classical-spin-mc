@@ -53,6 +53,10 @@ mutable struct Observables
     replicaAcceptance::Vector{Float64}
 end
 
+function Base.:show(io::IO,obs::Observables)
+    println(io,"Observables object with $(length(fieldnames(typeof(obs)))) observables")
+end
+
 function Observables(lattice::T, storeAll::Bool) where {T<:Lattice}
     return Observables(
         ErrorPropagator(Float64),

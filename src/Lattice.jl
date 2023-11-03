@@ -150,6 +150,10 @@ function Base.length(lattice::Lattice{D,N}) where {D,N}
     return lattice.length
 end
 
+function Base.:show(io::IO,lattice::Lattice{D,N}) where {D,N}
+    println(io,"$(D)D Lattice with $(size(lattice)) unitcells and $(N) interactions per site")
+end
+
 function getSpin(lattice::Lattice{D,N}, site::Int) where {D,N}
     return lattice.spins[site]
 end
