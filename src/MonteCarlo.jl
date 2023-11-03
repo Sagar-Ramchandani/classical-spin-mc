@@ -43,7 +43,7 @@ mutable struct MonteCarloParameters{U<:AbstractRNG}
 end
 
 function Base.:show(io::IO,parameters::MonteCarloParameters)
-    println(io,"MonteCarloParameters with β=$(parameters.beta) and update function $(parameters.updateFunction)")
+    println(io,"MonteCarloParameters with β=$(parameters.beta) and update function: $(parameters.updateFunction)")
 end
 
 function MonteCarloParameters(
