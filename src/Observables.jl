@@ -24,19 +24,19 @@ function getSpecificHeat(obs::Observables, beta::Float64, N::Int64)
     return (heat, dheat)
 end
 
-#function fraction(vec)
-#    total=0
-#    up=0
-#    for i in vec
-#        if i!=zero(eltype(vec))
-#            total+=1
-#            if i==one(eltype(vec))
-#                up+=1
-#            end
-#        end
-#    end
-#    return up/total
-#end
+function getFraction(vec)
+    total = 0
+    up = 0
+    for i in vec
+        if i != zero(eltype(vec))
+            total += 1
+            if i == one(eltype(vec))
+                up += 1
+            end
+        end
+    end
+    return up / total
+end
 
 mutable struct Observables
     """
