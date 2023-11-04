@@ -19,7 +19,7 @@ function UnitCell(primitive::Vararg{NTuple{D,Float64},D}) where {D}
 end
 
 function Base.:show(io::IO, uc::UnitCell{D}) where {D}
-    println(io,"$(2)D Unitcell with $(length(uc.basis)) sites and $(length(uc.interactions)) interactions")
+    println(io, "$(2)D Unitcell with $(length(uc.basis)) sites and $(length(uc.interactions)) interactions")
 end
 
 """
@@ -32,6 +32,7 @@ function addInteraction!(unitcell::UnitCell{D}, b1::Int, b2::Int, M::SMatrix{3,3
         error("Interaction cannot be local. Use setInteractionOnsite!() instead.")
     end
     push!(unitcell.interactions, (b1 => b2, offset, M))
+    return nothing
 end
 
 """
@@ -40,6 +41,7 @@ The exchange energy is calculated as spin'.M.spin
 """
 function setInteractionOnsite!(unitcell::UnitCell{D}, b::Int, M::SMatrix{3,3,Float64,9}) where {D}
     unitcell.interactionsOnsite[b] = M
+    return nothing
 end
 
 
@@ -48,6 +50,7 @@ Sets the magnetic field for a spin at the basis site 'b'.
 """
 function setField!(unitcell::UnitCell{D}, b::Int, B::SVector{3,Float64}) where {D}
     unitcell.interactionsField[b] = B
+    return nothing
 end
 
 """
@@ -57,6 +60,7 @@ function addBasisSite!(unitcell::UnitCell{D}, position::SVector{D,Float64}) wher
     push!(unitcell.basis, position)
     push!(unitcell.interactionsOnsite, @SMatrix zeros(3, 3))
     push!(unitcell.interactionsField, @SVector zeros(3))
+    return nothing
 end
 
 function Base.length(unitcell::UnitCell{D}) where {D}
