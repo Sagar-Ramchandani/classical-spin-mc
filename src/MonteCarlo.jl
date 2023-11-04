@@ -20,8 +20,8 @@ mutable struct MonteCarloStatistics
     MonteCarloStatistics() = new(0, 0, 0, 0, 0, time())
 end
 
-function Base.:show(io::IO,statistics::MonteCarloStatistics)
-    println(io,"MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $(statistics.initializationTime)")
+function Base.:show(io::IO, statistics::MonteCarloStatistics)
+    println(io, "MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $(statistics.initializationTime)")
 end
 
 mutable struct MonteCarloParameters{U<:AbstractRNG}
@@ -42,8 +42,8 @@ mutable struct MonteCarloParameters{U<:AbstractRNG}
     updateFunction::Function
 end
 
-function Base.:show(io::IO,parameters::MonteCarloParameters)
-    println(io,"MonteCarloParameters with β=$(parameters.beta) and update function: $(parameters.updateFunction)")
+function Base.:show(io::IO, parameters::MonteCarloParameters)
+    println(io, "MonteCarloParameters with β=$(parameters.beta) and update function: $(parameters.updateFunction)")
 end
 
 function MonteCarloParameters(
@@ -74,8 +74,8 @@ mutable struct MonteCarlo{T<:Lattice}
     observables::Observables
 end
 
-function Base.:show(io::IO,mc::MonteCarlo{T}) where {T<:Lattice}
-    println(io,"MonteCarlo with β=$(mc.parameters.beta) and update function: $(mc.parameters.updateFunction)")
+function Base.:show(io::IO, mc::MonteCarlo{T}) where {T<:Lattice}
+    println(io, "MonteCarlo with β=$(mc.parameters.beta) and update function: $(mc.parameters.updateFunction)")
 end
 
 function MonteCarlo(lattice::T, parameters::MonteCarloParameters,
@@ -91,8 +91,8 @@ function MonteCarlo(lattice::Lattice{D,N}, parameters::Tuple{Float64,Int64,Int64
     return MonteCarlo(lattice, pm, obs)
 end
 
-#Add a warning that this update only works if the lattice is aleady initialized
 function initSpinConfiguration!(lattice::Lattice{D,N}, f::typeof(conicalUpdate), rng=Random.GLOBAL_RNG) where {D,N}
+    @warn "Conical updates only work if the lattice is already initialized"
     for i in 1:length(lattice)
         setSpin!(lattice, i, f(getSpin(lattice, i), 1.0π, rng))
     end
