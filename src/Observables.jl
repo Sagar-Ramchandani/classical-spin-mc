@@ -1,4 +1,5 @@
 using BinningAnalysis
+using Statistics
 
 #Defining Aliases for Observable Types
 const BinnedObs = LogBinner{Float64,32,BinningAnalysis.Variance{Float64}}
@@ -11,6 +12,17 @@ const VectorObs = Union{BinnedVectorObs,FullVectorObs}
 const BinnedMatrixObs = LogBinner{Matrix{Float64},32,BinningAnalysis.Variance{Matrix{Float64}}}
 const FullMatrixObs = FullBinner{Matrix{Float64},Vector{Matrix{Float64}}}
 const MatrixObs = Union{BinnedMatrixObs,FullMatrixObs}
+
+#Review this
+function getSpecificHeat(obs::Observables, beta::Float64, N::Int64)
+    c(e) = beta * beta * (e[2] - e[1] * e[1]) * N
+    ∇c(e) = [-2.0 * beta * beta * e[1] * N, beta * beta * N]
+    heat = mean(obs.energy, c)
+    dheat = sqrt(abs(var(
+        obs.energy, ∇c, BinningAnalysis._reliable_level(obs.energy))) /
+                 obs.energy.count[BinningAnalysis._reliable_level(obs.energy)])
+    return (heat, dheat)
+end
 
 #function fraction(vec)
 #    total=0
@@ -53,8 +65,8 @@ mutable struct Observables
     replicaAcceptance::Vector{Float64}
 end
 
-function Base.:show(io::IO,obs::Observables)
-    println(io,"Observables object with $(length(fieldnames(typeof(obs)))) observables")
+function Base.:show(io::IO, obs::Observables)
+    println(io, "Observables object with $(length(fieldnames(typeof(obs)))) observables")
 end
 
 function Observables(lattice::T, storeAll::Bool) where {T<:Lattice}
