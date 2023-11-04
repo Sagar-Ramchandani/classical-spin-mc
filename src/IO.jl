@@ -124,13 +124,13 @@ function readMonteCarloParameters(fn::Union{HDF5.File,HDF5.Group})
     return mcp
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, mean::Float64, error::Float64)
+function save(fn::Union{HDF5.File,HDF5.Group}, path::String, mean::T, error::T) where {T}
     fn["$(path)/mean"] = mean
     fn["$(path)/error"] = error
 end
 
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::ErrorPropagator)
-    save(fn, path, mean(observable[1]), std_error(observable[1]))
+    save(fn, path, means(observable)[1], std_errors(observable)[1])
 end
 
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::LogBinner)
@@ -139,33 +139,38 @@ end
 
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::FullBinner)
     save(fn, path, mean(observable), std_error(observable))
-    fn["$(path)/values"] = observable.x
+    fn["$(path)/values"] = reduce(hcat, observable.x)
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::Vector{Real})
-    save(fn, path, mean(observable), std_error(observable))
+function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::Vector{T}) where {T<:Real}
+    save(fn, path, mean(observable), std(observable))
 end
 
-function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables, beta::Float64, N::Float64)
+function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables, beta::Float64, N::Int64)
     o = create_group(fn, "observables")
 
     for field in fieldnames(Observables)
-        save(o, field, getfield(a, field))
+        save(o, String(field), getfield(obs, field))
     end
 
     #Save specific heat seperately
-    c(e) = beta * beta * (e[2] - e[1] * e[1]) * N
-    ∇c(e) = [-2.0 * beta * beta * e[1] * N, beta * beta * N]
-    heat = mean(obs.energy, c)
-    dheat = sqrt(abs(var(
-        obs.energy, ∇c, BinningAnalysis._reliable_level(obs.energy))) /
-                 obs.energy.count[BinningAnalysis._reliable_level(obs.energy)])
-    save(o, "specificHeat", heat, dheat)
+    save(o, "specificHeat", getSpecificHeat(obs, beta, N)...)
+
+    return nothing
 end
 
+"""
+Progress has halted since 
+it is uncertain whether the binning analysis objects 
+can be recreated from any amount of non-serialized saved data.
+"""
 function readObservables(fn::Union{HDF5.File,HDF5.Group})
     o = fn["observables"]
+    obsKeys = keys(o)
+    data = []
     for field in fieldnames(Observables)
+        observable = o[String(field)]
+        push!(data, load(o, o[String]))
     end
 end
 
@@ -174,16 +179,22 @@ function writeMonteCarlo!(filename::String, mc::MonteCarlo{Lattice{D,N}}) where 
         g = create_group(f, "mc")
         writeLattice!(g, mc.lattice)
         writeMonteCarloParameters!(g, mc.parameters)
-        writeObservables!(g, mc.observables, mc.beta, mc.lattice.length)
+        writeObservables!(g, mc.observables, mc.parameters.beta, mc.lattice.length)
     end
 end
 
-function readMonteCarlo(filename::String)
+"""
+Eventually we would like to load all observables 
+from unserialized saved data but it is uncertain 
+whether this is possible.
+"""
+function readMonteCarlo(filename::String, storeAll::Bool)
     h5open(filename, "r") do f
         g = f["mc"]
         lattice = readLattice(g)
         parameters = readMonteCarloParameters(g)
-        observables = readMonteCarloObservables(g)
+        #observables = readMonteCarloObservables(g)
+        observables = Observables(lattice, storeAll)
         return MonteCarlo(lattice, parameters, observables)
     end
 end

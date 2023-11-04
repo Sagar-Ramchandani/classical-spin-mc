@@ -22,6 +22,7 @@ include("IO.jl")
 export writeUnitcell!, readUnitcell,
     writeLattice!, readLattice,
     writeMonteCarloParameters!, readMonteCarloParameters,
+    writeObservables!, readObservables,
     writeMonteCarlo!, readMonteCarlo
 
 using Reexport
