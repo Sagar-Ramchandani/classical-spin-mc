@@ -16,6 +16,7 @@ mutable struct Lattice{D,N}
     Lattice(D, N) = new{D,N}()
 end
 
+#Add error check for a unitcell with no sites.
 function Lattice(uc::UnitCell{D}, L::NTuple{D,Int}) where {D}
     #parse interactions
     ##For every basis site b, generate list of sites which b interacts with and store the corresponding interaction sites and matrices. 
@@ -150,8 +151,8 @@ function Base.length(lattice::Lattice{D,N}) where {D,N}
     return lattice.length
 end
 
-function Base.:show(io::IO,lattice::Lattice{D,N}) where {D,N}
-    println(io,"$(D)D Lattice with $(size(lattice)) unitcells and $(N) interactions per site")
+function Base.:show(io::IO, lattice::Lattice{D,N}) where {D,N}
+    println(io, "$(D)D Lattice with $(size(lattice)) unitcells and $(N) interactions per site")
 end
 
 function getSpin(lattice::Lattice{D,N}, site::Int) where {D,N}
