@@ -40,6 +40,7 @@ mutable struct MonteCarloParameters{U<:AbstractRNG}
     sweep::Int
 
     updateFunction::Function
+    updateParameter::Float64
 end
 
 function Base.:show(io::IO, parameters::MonteCarloParameters)
@@ -59,12 +60,13 @@ function MonteCarloParameters(
     rng::U=copy(Random.GLOBAL_RNG),
     seed::UInt=rand(Random.RandomDevice(), UInt),
     sweep::Int=0,
-    updateFunction::Function=sphericalUpdate) where {U<:AbstractRNG}
+    updateFunction::Function=sphericalUpdate,
+    updateParameter::Float64) where {U<:AbstractRNG}
 
     return MonteCarloParameters(beta, thermalizationSweeps, measurementSweeps,
         measurementRate, microcanonicalRoundsPerSweep, replicaExchangeRate,
         randomizeInitialConfiguration, reportInterval, checkpointInterval,
-        rng, seed, sweep, updateFunction)
+        rng, seed, sweep, updateFunction, updateParameter)
 end
 
 mutable struct MonteCarlo{T<:Lattice}
@@ -112,30 +114,51 @@ function initSpinConfiguration!(mc::MonteCarlo{T}, f::typeof(conicalUpdate)) whe
     initSpinConfiguration!(mc.lattice, f, mc.rng)
 end
 
-function localSweep(mc::MonteCarlo{T}) where {T<:Lattice}
+function localUpdate(mc::MonteCarlo{T}, proposalSite::Int, newSpinState::SVector{3,Float64}) where {T<:Lattice}
+    energyDifference = getEnergyDifference(mc.lattice, proposalSite, newSpinState)
+    #check acceptance of new configuration
+    mc.statistics.attemptedLocalUpdates += 1
+    p = exp(-mc.parameters.beta * energyDifference)
+    if (rand(mc.parameters.rng) < min(1.0, p))
+        setSpin!(mc.lattice, proposalSite, newSpinState)
+        mc.statistics.acceptedLocalUpdates += 1
+    else
+        energyDifference = 0.0
+    end
+    return energyDifference
 end
 
-function localSweep(mc::MonteCarlo{T}, statistics::MonteCarloStatistics, energy::Float64; restrictTheta=1.0π) where {T<:Lattice}
+function localSweep(mc::MonteCarlo{T}, f::Function, energy::Float64) where {T<:Lattice}
+    for i in 1:length(mc.lattice)
+        site = rand(mc.parameters.rng, 1:length(mc.lattice))
+        newSpinState = f(mc.parameters.rng)
+        energy += localUpdate(mc, site, newSpinState)
+    end
+    mc.statistics.sweeps += 1
+    return energy
+end
+
+function localSweep(mc::MonteCarlo{T}, f::typeof(conicalUpdate), energy::Float64, updateParameter::Float64) where {T<:Lattice}
+    for i in 1:length(mc.lattice)
+        site = rand(mc.parameters.rng, 1:length(mc.lattice))
+        newSpinState = f(getSpin(mc.lattice, site), updateParameter, mc.parameters.rng)
+        energy += localUpdate(mc, site, newSpinState)
+    end
+    mc.statistics.sweeps += 1
+    return energy
+end
+
+function localSweep(mc::MonteCarlo{T}, energy::Float64; restrictTheta=1.0π) where {T<:Lattice}
     for i in 1:mc.lattice.length
         #select random spin
-        site = rand(mc.rng, 1:length(mc.lattice))
+        site = rand(mc.parameters.rng, 1:length(mc.lattice))
 
         #propose new spin configuration
         #newSpinState = uniformOnSphere(mc.rng)
-        newSpinState = randCone(getSpin(mc.lattice, site), restrictTheta, rng=mc.rng)
-        #newSpinState = marsagliaSphere(mc.rng)
-        energyDifference = getEnergyDifference(mc.lattice, site, newSpinState)
-
-        #check acceptance of new configuration
-        statistics.attemptedLocalUpdates += 1
-        p = exp(-mc.beta * energyDifference)
-        if (rand(mc.rng) < min(1.0, p))
-            setSpin!(mc.lattice, site, newSpinState)
-            energy += energyDifference
-            statistics.acceptedLocalUpdates += 1
-        end
+        #newSpinState = conicalUpdate(getSpin(mc.lattice, site), restrictTheta, mc.parameters.rng)
+        newSpinState = marsagliaSphereUpdate(mc.parameters.rng)
     end
-    statistics.sweeps += 1
+    mc.statistics.sweeps += 1
     return energy
 end
 
