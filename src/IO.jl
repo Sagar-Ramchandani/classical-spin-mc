@@ -129,12 +129,36 @@ function save(fn::Union{HDF5.File,HDF5.Group}, path::String, mean::T, error::T) 
     fn["$(path)/error"] = error
 end
 
+function save(fn::Union{HDF5.File,HDF5.Group}, path::String, accumulators::Vector{BinningAnalysis.Variance})
+    for (i, accum) in enumerate(accumulators)
+        fn["$(path)/accumulators/$(i)"] = (accum.count, accum.m1, accum.m2, accum.δ)
+    end
+end
+
+function save(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::Vector{BinningAnalysis.Compressor})
+    for (i, comp) in enumerate(compressors)
+        fn["$(path)/compressors/$(i)"] = (comp.switch, comp.value)
+    end
+end
+
+function save(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::Vector{BinningAnalysis.EPCompressor})
+    for (i, comp) in enumerate(compressors)
+        fn["$(path)/compressors/$(i)"] = (comp.switch, comp.values)
+    end
+end
+
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::ErrorPropagator)
     save(fn, path, means(observable)[1], std_errors(observable)[1])
+    save(fn, path, observable.compressors)
+    fn["$(path)/count"] = observable.count
+    fn["$(path)/sums1D"] = observable.sums1D
+    fn["$(path)/sums2D"] = observable.sums2D
 end
 
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::LogBinner)
     save(fn, path, mean(observable), std_error(observable))
+    save(fn, path, observable.accumulators)
+    save(fn, path, observable.compressors)
 end
 
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::FullBinner)
