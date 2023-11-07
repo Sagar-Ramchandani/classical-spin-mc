@@ -131,7 +131,7 @@ function localUpdate(mc::MonteCarlo{T,P}, proposalSite::Int64, newSpinState::SVe
     return energyDifference
 end
 
-@inline function localSweep(::Function, mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
+function localSweep(::Function, mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
     for i in 1:length(mc.lattice)
         site = rand(mc.parameters.rng, 1:length(mc.lattice))
         newSpinState = mc.parameters.updateFunction(mc.parameters.rng)
@@ -141,7 +141,7 @@ end
     return energy
 end
 
-@inline function localSweep(::typeof(conicalUpdate), mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
+function localSweep(::typeof(conicalUpdate), mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
     for i in 1:length(mc.lattice)
         site = rand(mc.parameters.rng, 1:length(mc.lattice))
         newSpinState = f(getSpin(mc.lattice, site), mc.parameters.updateParameter, mc.parameters.rng)
