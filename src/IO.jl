@@ -149,12 +149,13 @@ end
 
 function load(::Val{BinningAnalysis.Variance{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
     indexes = map((x) -> parse(Int, x), keys(fn["$(path)/accumulators"]))
-    accums = Vector{BinningAnalysis.Variance{T}}(undef, length(indexes))
+    Nindexes = length(indexes)
+    accums = Vector{BinningAnalysis.Variance{T}}(undef, Nindexes)
     for i in indexes
         acc = fn["$(path)/accumulators/$(i)/"]
         accums[i] = BinningAnalysis.Variance(read(acc["δ"]), read(acc["m1"]), read(acc["m2"]), read(acc["count"]))
     end
-    return accums
+    return NTuple{Nindexes,BinningAnalysis.Variance{T}}(accums)
 end
 
 function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::NTuple{D,BinningAnalysis.Compressor{T}}) where {D,T}
@@ -167,12 +168,13 @@ end
 
 function load(::Val{BinningAnalysis.Compressor{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
     indexes = map((x) -> parse(Int, x), keys(fn["$(path)/compressors"]))
-    comps = Vector{BinningAnalysis.Compressor{T}}(undef, length(indexes))
+    Nindexes = length(indexes)
+    comps = Vector{BinningAnalysis.Compressor{T}}(undef, Nindexes)
     for i in indexes
         cp = fn["$(path)/compressors/$(i)/"]
         comps[i] = BinningAnalysis.Compressor(read(cp["value"]), read(cp["switch"]))
     end
-    return comps
+    return NTuple{Nindexes,BinningAnalysis.Compressor{T}}(comps)
 end
 
 function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::NTuple{D,BinningAnalysis.EPCompressor{T}}) where {D,T}
@@ -185,34 +187,35 @@ end
 
 function load(::Val{BinningAnalysis.EPCompressor{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
     indexes = map((x) -> parse(Int, x), keys(fn["$(path)/compressors"]))
-    comps = Vector{BinningAnalysis.EPCompressor{T}}(undef, length(indexes))
+    Nindexes = length(indexes)
+    comps = Vector{BinningAnalysis.EPCompressor{T}}(undef, Nindexes)
     for i in indexes
         cp = fn["$(path)/compressors/$(i)/"]
         comps[i] = BinningAnalysis.EPCompressor(read(cp["values"]), read(cp["switch"]))
     end
-    return comps
+    return NTuple{Nindexes,BinningAnalysis.EPCompressor{T}}(comps)
 end
 
 function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::ErrorPropagator{T,D}) where {T,D}
     save!(fn, path, means(observable)[1], std_errors(observable)[1])
     save!(fn, path, observable.compressors)
-    fn["$(path)/count"] = observable.count
     fn["$(path)/sums1D"] = reduce(hcat, observable.sums1D)
     fn["$(path)/sums2D"] = reduce(hcat, observable.sums2D)
+    fn["$(path)/count"] = observable.count
     return nothing
 end
 
-#This fails as there is no valid constructor at the moment.
 function load(::Val{ErrorPropagator{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
     comp = load(Val(BinningAnalysis.EPCompressor{T}), fn, path)
     sums1D = eachcol(read(fn["$(path)/sums1D"]))
-    sums1D = NTuple{size(sums1D, 2),Vector{T}}(sums1D)
+    sums1D = NTuple{length(sums1D),Vector{T}}(sums1D)
     sums2D = (read(fn["$(path)/sums2D"]))
     D = size(sums2D, 1)
     sums2D = reshape(sums2D, D, D, :)
     D = size(sums2D, 3)
     sums2D = NTuple{D,Matrix{T}}([Matrix{T}(sums2D[:, :, i]) for i in 1:D])
-    return ErrorPropagator(comp, count, sums1D, sums2D)
+    count = read(fn["$(path)/count"])
+    return ErrorPropagator(comp, sums1D, sums2D, count)
 end
 
 function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::LogBinner)
@@ -222,11 +225,10 @@ function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::LogBin
     return nothing
 end
 
-#This fails as there is no valid constructor at the moment.
-function load(::Val{LogBinner{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
+function load(::Val{LogBinner{T,D}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T,D}
     accum = load(Val(BinningAnalysis.Variance{T}), fn, path)
     comp = load(Val(BinningAnalysis.Compressor{T}), fn, path)
-    return LogBinner(comp, accum)
+    return LogBinner{T,D}(comp, accum)
 end
 
 function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::FullBinner)
@@ -258,8 +260,9 @@ function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables, be
 end
 
 """
-Progress made on loading certain structs 
-but certain constructors are missing. 
+All structs now loading, 
+now need to start saving struct types to 
+finally read structs properly
 """
 function readObservables(fn::Union{HDF5.File,HDF5.Group})
     o = fn["observables"]
