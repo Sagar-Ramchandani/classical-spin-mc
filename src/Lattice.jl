@@ -18,6 +18,7 @@ end
 
 #Add error check for a unitcell with no sites.
 function Lattice(uc::UnitCell{D}, L::NTuple{D,Int}) where {D}
+    @assert(!(length(uc.basis) == 0), "The Unitcell has no sites and thus a lattice cannot be created")
     #parse interactions
     ##For every basis site b, generate list of sites which b interacts with and store the corresponding interaction sites and matrices. 
     ##Interaction sites are specified by the target site's basis id, b_target, and the offset in units of primitive lattice vectors. 
