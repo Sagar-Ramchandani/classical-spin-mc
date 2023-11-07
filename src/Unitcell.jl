@@ -63,6 +63,6 @@ function addBasisSite!(unitcell::UnitCell{D}, position::SVector{D,Float64}) wher
     return nothing
 end
 
-function Base.length(unitcell::UnitCell{D}) where {D}
-    return first(typeof(unitcell).parameters)
+function Base.length(unitcell::UnitCell{D})::Int where {D}
+    return length(unitcell.basis)
 end
