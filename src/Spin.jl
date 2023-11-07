@@ -197,7 +197,7 @@ function microcanonicalRotation(lattice::Lattice{D,N}, site::Int) where {D,N}
     return piRotation(getSpin(lattice, site), axis)
 end
 
-function microcanonicalRotationRandom(lattice::Lattice{D,N}, site::Int; rng=Random.GLOBAL_RNG) where {D,N}
+function microcanonicalRotationRandom(lattice::Lattice{D,N}, site::Int, rng=Random.GLOBAL_RNG) where {D,N}
     #compute rotation axis
     axis = zero(eltype(lattice.spins))
     for (interactionSite, interactionMatrix) in zip(lattice.interactionSites[site], lattice.interactionMatrices[site])
