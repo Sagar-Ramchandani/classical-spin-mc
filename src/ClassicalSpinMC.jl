@@ -24,7 +24,7 @@ export writeUnitcell!, readUnitcell,
     writeMonteCarloParameters!, readMonteCarloParameters,
     writeObservables!, readObservables,
     writeMonteCarlo!, readMonteCarlo,
-    save, load #Only export for debugging
+    save!, load #Only export for debugging
 
 using Reexport
 @reexport using BinningAnalysis

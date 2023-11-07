@@ -124,9 +124,10 @@ function readMonteCarloParameters(fn::Union{HDF5.File,HDF5.Group})
     return mcp
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, mean::T, error::T) where {T}
+function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, mean::T, error::T) where {T}
     fn["$(path)/mean"] = mean
     fn["$(path)/error"] = error
+    return nothing
 end
 
 function load(::Val{T}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
@@ -135,7 +136,7 @@ function load(::Val{T}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
     return (mean, error)
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, accumulators::NTuple{D,BinningAnalysis.Variance{T}}) where {D,T}
+function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, accumulators::NTuple{D,BinningAnalysis.Variance{T}}) where {D,T}
     for (i, accum) in enumerate(accumulators)
         acc = "$(path)/accumulators/$(i)/"
         fn[acc*"δ"] = accum.δ
@@ -143,6 +144,7 @@ function save(fn::Union{HDF5.File,HDF5.Group}, path::String, accumulators::NTupl
         fn[acc*"m2"] = accum.m2
         fn[acc*"count"] = accum.count
     end
+    return nothing
 end
 
 function load(::Val{BinningAnalysis.Variance{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
@@ -155,11 +157,12 @@ function load(::Val{BinningAnalysis.Variance{T}}, fn::Union{HDF5.File,HDF5.Group
     return accums
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::NTuple{D,BinningAnalysis.Compressor{T}}) where {D,T}
+function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::NTuple{D,BinningAnalysis.Compressor{T}}) where {D,T}
     for (i, comp) in enumerate(compressors)
         fn["$(path)/compressors/$(i)/switch"] = comp.switch
         fn["$(path)/compressors/$(i)/value"] = comp.value
     end
+    return nothing
 end
 
 function load(::Val{BinningAnalysis.Compressor{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
@@ -172,11 +175,12 @@ function load(::Val{BinningAnalysis.Compressor{T}}, fn::Union{HDF5.File,HDF5.Gro
     return comps
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::NTuple{D,BinningAnalysis.EPCompressor{T}}) where {D,T}
+function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::NTuple{D,BinningAnalysis.EPCompressor{T}}) where {D,T}
     for (i, comp) in enumerate(compressors)
         fn["$(path)/compressors/$(i)/switch"] = comp.switch
         fn["$(path)/compressors/$(i)/values"] = comp.values
     end
+    return nothing
 end
 
 function load(::Val{BinningAnalysis.EPCompressor{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
@@ -189,12 +193,13 @@ function load(::Val{BinningAnalysis.EPCompressor{T}}, fn::Union{HDF5.File,HDF5.G
     return comps
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::ErrorPropagator)
-    save(fn, path, means(observable)[1], std_errors(observable)[1])
-    save(fn, path, observable.compressors)
+function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::ErrorPropagator{T,D}) where {T,D}
+    save!(fn, path, means(observable)[1], std_errors(observable)[1])
+    save!(fn, path, observable.compressors)
     fn["$(path)/count"] = observable.count
     fn["$(path)/sums1D"] = reduce(hcat, observable.sums1D)
     fn["$(path)/sums2D"] = reduce(hcat, observable.sums2D)
+    return nothing
 end
 
 #This fails as there is no valid constructor at the moment.
@@ -210,10 +215,11 @@ function load(::Val{ErrorPropagator{T}}, fn::Union{HDF5.File,HDF5.Group}, path::
     return ErrorPropagator(comp, count, sums1D, sums2D)
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::LogBinner)
-    save(fn, path, mean(observable), std_error(observable))
-    save(fn, path, observable.accumulators)
-    save(fn, path, observable.compressors)
+function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::LogBinner)
+    save!(fn, path, mean(observable), std_error(observable))
+    save!(fn, path, observable.accumulators)
+    save!(fn, path, observable.compressors)
+    return nothing
 end
 
 #This fails as there is no valid constructor at the moment.
@@ -223,28 +229,30 @@ function load(::Val{LogBinner{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String
     return LogBinner(comp, accum)
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::FullBinner)
-    save(fn, path, mean(observable), std_error(observable))
+function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::FullBinner)
+    save!(fn, path, mean(observable), std_error(observable))
     fn["$(path)/values"] = reduce(hcat, observable.x)
+    return nothing
 end
 
 function load(::Val{FullBinner{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
     return FullBinner(T(ncols(read(fn["$(path)/values"]))))
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::Vector{T}) where {T<:Real}
-    save(fn, path, mean(observable), std(observable))
+function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::Vector{T}) where {T<:Real}
+    save!(fn, path, mean(observable), std(observable))
+    return nothing
 end
 
 function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables, beta::Float64, N::Int64)
     o = create_group(fn, "observables")
 
     for field in fieldnames(Observables)
-        save(o, String(field), getfield(obs, field))
+        save!(o, String(field), getfield(obs, field))
     end
 
     #Save specific heat seperately
-    save(o, "specificHeat", getSpecificHeat(obs, beta, N)...)
+    save!(o, "specificHeat", getSpecificHeat(obs, beta, N)...)
 
     return nothing
 end
