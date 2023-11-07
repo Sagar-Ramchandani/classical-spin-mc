@@ -129,30 +129,66 @@ function save(fn::Union{HDF5.File,HDF5.Group}, path::String, mean::T, error::T) 
     fn["$(path)/error"] = error
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, accumulators::Vector{BinningAnalysis.Variance})
+function load(::Val{T}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
+    mean = fn["$(path)/mean"]
+    error = fn["$(path)/error"]
+    return (mean, error)
+end
+
+function save(fn::Union{HDF5.File,HDF5.Group}, path::String, accumulators::NTuple{D,BinningAnalysis.Variance{T}}) where {D,T}
     for (i, accum) in enumerate(accumulators)
-        fn["$(path)/accumulators/$(i)"] = (accum.count, accum.m1, accum.m2, accum.δ)
+        acc = "$(path)/accumulators/$(i)/"
+        fn[acc*"δ"] = accum.δ
+        fn[acc*"m1"] = accum.m1
+        fn[acc*"m2"] = accum.m2
+        fn[acc*"count"] = accum.count
     end
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::Vector{BinningAnalysis.Compressor})
+function load(::Val{BinningAnalysis.Variance{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
+    indexes = map((x) -> parse(Int, x), keys(fn["$(path)/accumulators"]))
+    accums = Vector{BinningAnalysis.Variance{T}}(undef, length(indexes))
+    for i in indexes
+        acc = fn["$(path)/accumulators/$(i)/"]
+        accums[i] = BinningAnalysis.Variance(read(acc["δ"]), read(acc["m1"]), read(acc["m2"]), read(acc["count"]))
+    end
+    return accums
+end
+
+function save(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::NTuple{D,BinningAnalysis.Compressor{T}}) where {D,T}
     for (i, comp) in enumerate(compressors)
-        fn["$(path)/compressors/$(i)"] = (comp.switch, comp.value)
+        fn["$(path)/compressors/$(i)/switch"] = comp.switch
+        fn["$(path)/compressors/$(i)/value"] = comp.value
     end
 end
 
-function save(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::Vector{BinningAnalysis.EPCompressor})
-    for (i, comp) in enumerate(compressors)
-        fn["$(path)/compressors/$(i)"] = (comp.switch, comp.values)
+function load(::Val{BinningAnalysis.Compressor{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
+    indexes = map((x) -> parse(Int, x), keys(fn["$(path)/compressors"]))
+    comps = Vector{BinningAnalysis.Compressor{T}}(undef, length(indexes))
+    for i in indexes
+        cp = fn["$(path)/compressors/$(i)/"]
+        comps[i] = BinningAnalysis.Compressor(read(cp["value"]), read(cp["switch"]))
     end
+    return comps
+end
+
+function save(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::NTuple{D,BinningAnalysis.EPCompressor{T}}) where {D,T}
+    for (i, comp) in enumerate(compressors)
+        fn["$(path)/compressors/$(i)/switch"] = comp.switch
+        fn["$(path)/compressors/$(i)/values"] = comp.values
+    end
+end
+
+function load(::Val{BinningAnalysis.EPCompressor{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
+
 end
 
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::ErrorPropagator)
     save(fn, path, means(observable)[1], std_errors(observable)[1])
     save(fn, path, observable.compressors)
     fn["$(path)/count"] = observable.count
-    fn["$(path)/sums1D"] = observable.sums1D
-    fn["$(path)/sums2D"] = observable.sums2D
+    fn["$(path)/sums1D"] = [observable.sums1D...]
+    fn["$(path)/sums2D"] = [observable.sums2D...]
 end
 
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::LogBinner)
@@ -161,9 +197,20 @@ function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::LogBinn
     save(fn, path, observable.compressors)
 end
 
+#This fails as there is no valid constructor at the moment.
+function load(::Val{LogBinner{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
+    accum = load(Val(BinningAnalysis.Variance{T}), fn, path)
+    comp = load(Val(BinningAnalysis.Compressor{T}), fn, path)
+    return LogBinner(comp, accum)
+end
+
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::FullBinner)
     save(fn, path, mean(observable), std_error(observable))
     fn["$(path)/values"] = reduce(hcat, observable.x)
+end
+
+function load(::Val{FullBinner{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
+    return FullBinner(T(ncols(read(fn["$(path)/values"]))))
 end
 
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::Vector{T}) where {T<:Real}
@@ -184,9 +231,8 @@ function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables, be
 end
 
 """
-Progress has halted since 
-it is uncertain whether the binning analysis objects 
-can be recreated from any amount of non-serialized saved data.
+Progress made on loading certain structs 
+but certain constructors are missing. 
 """
 function readObservables(fn::Union{HDF5.File,HDF5.Group})
     o = fn["observables"]
