@@ -155,21 +155,28 @@ function localSweep(mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
     return localSweep(mc.parameters.updateFunction, mc, energy)
 end
 
-function microcanonicalSweep!(mc::MonteCarlo{T}) where {T<:Lattice}
-    basisLength = length(mc.lattice.unitcell)
-    sublatticeOrdered = reduce(vcat, [collect(range(ii, mc.lattice.length, step=basisLength)) for ii in 1:basisLength])
-    for _ in 1:mc.microcanonicalRoundsPerSweep
+function microcanonicalSweep!(lattice::Lattice{D,N}, rounds::Int) where {D,N}
+    basisLength = length(lattice.unitcell)
+    sublatticeOrdered = reduce(vcat,
+        [collect(range(startIndex, length(lattice), step=basisLength)) for startIndex in 1:basisLength])
+    for _ in 1:rounds
         #Deterministic first iteration
+        #map((x) -> setSpin!(mc.lattice, x, microcanonicalRotation(mc.lattice, x)), sublatticeOrdered)
         for site in sublatticeOrdered
-            newSpinState = microcanonicalRotation(mc.lattice, site)
+            newSpinState = microcanonicalRotation(lattice, site)
             setSpin!(mc.lattice, site, newSpinState)
         end
         #Random second iteration
+        #map((x) -> setSpin!(mc.lattice, x, microcanonicalRotationRandom(mc.lattice, x, mc.parameters.rng)), sublatticeOrdered)
         for site in sublatticeOrdered
-            newSpinState = microcanonicalRotationRandom(mc.lattice, site, rng=mc.rng)
-            setSpin!(mc.lattice, site, newSpinState)
+            setSpin!(mc.lattice, site, microcanonicalRotationRandom(mc.lattice, site, mc.parameters.rng))
         end
     end
+    return nothing
+end
+
+function microcanonicalSweep!(mc::MonteCarlo{T}) where {T<:Lattice}
+    return microcanonicalSweep!(mc.lattice, mc.parameters.microcanonicalRoundsPerSweep)
 end
 
 function printStatistics!(mc::MonteCarlo{T}, statistics::MonteCarloStatistics) where {T<:Lattice}
