@@ -2,6 +2,8 @@ using Random
 using StaticArrays
 using LinearAlgebra
 
+const updateParameterDict = Dict(conicalUpdate => 2.0π)
+
 """
 --------------------------------------------------------------------------------
 Spin update functions 

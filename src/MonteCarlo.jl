@@ -61,7 +61,7 @@ function MonteCarloParameters(
     seed::UInt=rand(Random.RandomDevice(), UInt),
     sweep::Int=0,
     updateFunction::Function=sphericalUpdate,
-    updateParameter::Float64) where {U<:AbstractRNG}
+    updateParameter::Float64=get(updateParameterDict, updateFunction, 0.0)) where {U<:AbstractRNG}
 
     return MonteCarloParameters(beta, thermalizationSweeps, measurementSweeps,
         measurementRate, microcanonicalRoundsPerSweep, replicaExchangeRate,
