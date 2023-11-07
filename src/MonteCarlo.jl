@@ -157,19 +157,21 @@ end
 
 function microcanonicalSweep!(lattice::Lattice{D,N}, rounds::Int) where {D,N}
     basisLength = length(lattice.unitcell)
-    sublatticeOrdered = reduce(vcat,
-        [collect(range(startIndex, length(lattice), step=basisLength)) for startIndex in 1:basisLength])
     for _ in 1:rounds
         #Deterministic first iteration
-        #map((x) -> setSpin!(mc.lattice, x, microcanonicalRotation(mc.lattice, x)), sublatticeOrdered)
-        for site in sublatticeOrdered
-            newSpinState = microcanonicalRotation(lattice, site)
-            setSpin!(mc.lattice, site, newSpinState)
+        for i in 1:basisLength
+            sublatticeOrdered = range(i, length(lattice), step=basisLength)
+            for site in sublatticeOrdered
+                newSpinState = microcanonicalRotation(lattice, site)
+                setSpin!(mc.lattice, site, newSpinState)
+            end
         end
         #Random second iteration
-        #map((x) -> setSpin!(mc.lattice, x, microcanonicalRotationRandom(mc.lattice, x, mc.parameters.rng)), sublatticeOrdered)
-        for site in sublatticeOrdered
-            setSpin!(mc.lattice, site, microcanonicalRotationRandom(mc.lattice, site, mc.parameters.rng))
+        for i in 1:basisLength
+            sublatticeOrdered = range(i, length(lattice), step=basisLength)
+            for site in sublatticeOrdered
+                setSpin!(mc.lattice, site, microcanonicalRotationRandom(mc.lattice, site, mc.parameters.rng))
+            end
         end
     end
     return nothing
