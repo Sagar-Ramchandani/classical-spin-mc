@@ -193,8 +193,21 @@ function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::ErrorPr
     save(fn, path, means(observable)[1], std_errors(observable)[1])
     save(fn, path, observable.compressors)
     fn["$(path)/count"] = observable.count
-    fn["$(path)/sums1D"] = [observable.sums1D...]
-    fn["$(path)/sums2D"] = [observable.sums2D...]
+    fn["$(path)/sums1D"] = reduce(hcat, observable.sums1D)
+    fn["$(path)/sums2D"] = reduce(hcat, observable.sums2D)
+end
+
+#This fails as there is no valid constructor at the moment.
+function load(::Val{ErrorPropagator{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
+    comp = load(Val(BinningAnalysis.EPCompressor{T}), fn, path)
+    sums1D = eachcol(read(fn["$(path)/sums1D"]))
+    sums1D = NTuple{size(sums1D, 2),Vector{T}}(sums1D)
+    sums2D = (read(fn["$(path)/sums2D"]))
+    D = size(sums2D, 1)
+    sums2D = reshape(sums2D, D, D, :)
+    D = size(sums2D, 3)
+    sums2D = NTuple{D,Matrix{T}}([Matrix{T}(sums2D[:, :, i]) for i in 1:D])
+    return ErrorPropagator(comp, count, sums1D, sums2D)
 end
 
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::LogBinner)
