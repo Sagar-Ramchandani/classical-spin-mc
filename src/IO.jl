@@ -180,7 +180,13 @@ function save(fn::Union{HDF5.File,HDF5.Group}, path::String, compressors::NTuple
 end
 
 function load(::Val{BinningAnalysis.EPCompressor{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
-
+    indexes = map((x) -> parse(Int, x), keys(fn["$(path)/compressors"]))
+    comps = Vector{BinningAnalysis.EPCompressor{T}}(undef, length(indexes))
+    for i in indexes
+        cp = fn["$(path)/compressors/$(i)/"]
+        comps[i] = BinningAnalysis.EPCompressor(read(cp["values"]), read(cp["switch"]))
+    end
+    return comps
 end
 
 function save(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::ErrorPropagator)
