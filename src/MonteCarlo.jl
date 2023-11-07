@@ -3,6 +3,8 @@ using Dates
 using Printf
 using Distributed
 
+const updateParameterDict = Dict(conicalUpdate => 1.0π)
+
 """
 --------------------------------------------------------------------------------
 Monte Carlo Structs
@@ -24,7 +26,7 @@ function Base.:show(io::IO, statistics::MonteCarloStatistics)
     println(io, "MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $(statistics.initializationTime)")
 end
 
-mutable struct MonteCarloParameters{U<:AbstractRNG}
+mutable struct MonteCarloParameters{U<:AbstractRNG,UP<:Function}
     beta::Float64
     thermalizationSweeps::Int
     measurementSweeps::Int
@@ -39,7 +41,7 @@ mutable struct MonteCarloParameters{U<:AbstractRNG}
     seed::UInt
     sweep::Int
 
-    updateFunction::Function
+    updateFunction::UP
     updateParameter::Float64
 end
 
@@ -69,11 +71,18 @@ function MonteCarloParameters(
         rng, seed, sweep, updateFunction, updateParameter)
 end
 
-mutable struct MonteCarlo{T<:Lattice}
+mutable struct MonteCarlo{T<:Lattice,P<:MonteCarloParameters}
     lattice::T
-    parameters::MonteCarloParameters
+    parameters::P
     statistics::MonteCarloStatistics
     observables::Observables
+
+    function MonteCarlo(lattice::T, parameters::P, statistics::MonteCarloStatistics,
+        observables::Observables) where {T<:Lattice,P<:MonteCarloParameters}
+        mc = new{T,P}(deepcopy(lattice), parameters, statistics, observables)
+        Random.seed!(mc.parameters.rng, mc.parameters.seed)
+        return mc
+    end
 end
 
 function Base.:show(io::IO, mc::MonteCarlo{T}) where {T<:Lattice}
@@ -82,9 +91,7 @@ end
 
 function MonteCarlo(lattice::T, parameters::MonteCarloParameters,
     observables::Observables) where {T<:Lattice}
-    mc = MonteCarlo(deepcopy(lattice), parameters, MonteCarloStatistics(), observables)
-    Random.seed!(mc.parameters.rng, mc.parameters.seed)
-    return mc
+    return MonteCarlo(lattice, parameters, MonteCarloStatistics(), observables)
 end
 
 function MonteCarlo(lattice::Lattice{D,N}, parameters::Tuple{Float64,Int64,Int64}, storeAllMeasurements::Bool) where {D,N}
@@ -106,15 +113,11 @@ function initSpinConfiguration!(lattice::Lattice{D,N}, f::Function, rng=Random.G
     end
 end
 
-function initSpinConfiguration!(mc::MonteCarlo{T}, f::Function) where {T<:Lattice}
-    initSpinConfiguration!(mc.lattice, f, mc.rng)
+function initSpinConfiguration!(mc::MonteCarlo{T}) where {T<:Lattice}
+    initSpinConfiguration!(mc.lattice, mc.parameters.updateFunction, mc.parameters.rng)
 end
 
-function initSpinConfiguration!(mc::MonteCarlo{T}, f::typeof(conicalUpdate)) where {T<:Lattice}
-    initSpinConfiguration!(mc.lattice, f, mc.rng)
-end
-
-function localUpdate(mc::MonteCarlo{T}, proposalSite::Int, newSpinState::SVector{3,Float64}) where {T<:Lattice}
+function localUpdate(mc::MonteCarlo{T,P}, proposalSite::Int64, newSpinState::SVector{3,Float64}) where {T<:Lattice,P<:MonteCarloParameters}
     energyDifference = getEnergyDifference(mc.lattice, proposalSite, newSpinState)
     #check acceptance of new configuration
     mc.statistics.attemptedLocalUpdates += 1
@@ -128,42 +131,32 @@ function localUpdate(mc::MonteCarlo{T}, proposalSite::Int, newSpinState::SVector
     return energyDifference
 end
 
-function localSweep(mc::MonteCarlo{T}, f::Function, energy::Float64) where {T<:Lattice}
+@inline function localSweep(::Function, mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
     for i in 1:length(mc.lattice)
         site = rand(mc.parameters.rng, 1:length(mc.lattice))
-        newSpinState = f(mc.parameters.rng)
+        newSpinState = mc.parameters.updateFunction(mc.parameters.rng)
         energy += localUpdate(mc, site, newSpinState)
     end
     mc.statistics.sweeps += 1
     return energy
 end
 
-function localSweep(mc::MonteCarlo{T}, f::typeof(conicalUpdate), energy::Float64, updateParameter::Float64) where {T<:Lattice}
+@inline function localSweep(::typeof(conicalUpdate), mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
     for i in 1:length(mc.lattice)
         site = rand(mc.parameters.rng, 1:length(mc.lattice))
-        newSpinState = f(getSpin(mc.lattice, site), updateParameter, mc.parameters.rng)
+        newSpinState = f(getSpin(mc.lattice, site), mc.parameters.updateParameter, mc.parameters.rng)
         energy += localUpdate(mc, site, newSpinState)
     end
     mc.statistics.sweeps += 1
     return energy
 end
 
-function localSweep(mc::MonteCarlo{T}, energy::Float64; restrictTheta=1.0π) where {T<:Lattice}
-    for i in 1:mc.lattice.length
-        #select random spin
-        site = rand(mc.parameters.rng, 1:length(mc.lattice))
-
-        #propose new spin configuration
-        #newSpinState = uniformOnSphere(mc.rng)
-        #newSpinState = conicalUpdate(getSpin(mc.lattice, site), restrictTheta, mc.parameters.rng)
-        newSpinState = marsagliaSphereUpdate(mc.parameters.rng)
-    end
-    mc.statistics.sweeps += 1
-    return energy
+function localSweep(mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
+    return localSweep(mc.parameters.updateFunction, mc, energy)
 end
 
 function microcanonicalSweep!(mc::MonteCarlo{T}) where {T<:Lattice}
-    basisLength = length(mc.lattice.unitcell.basis)
+    basisLength = length(mc.lattice.unitcell)
     sublatticeOrdered = reduce(vcat, [collect(range(ii, mc.lattice.length, step=basisLength)) for ii in 1:basisLength])
     for _ in 1:mc.microcanonicalRoundsPerSweep
         #Deterministic first iteration
