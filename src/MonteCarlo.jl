@@ -132,27 +132,35 @@ function localUpdate(mc::MonteCarlo{T,P}, proposalSite::Int64, newSpinState::SVe
 end
 
 function localSweep(::Function, mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
-    for i in 1:length(mc.lattice)
+    for _ in 1:length(mc.lattice)
         site = rand(mc.parameters.rng, 1:length(mc.lattice))
         newSpinState = mc.parameters.updateFunction(mc.parameters.rng)
         energy += localUpdate(mc, site, newSpinState)
     end
-    mc.statistics.sweeps += 1
     return energy
 end
 
 function localSweep(::typeof(conicalUpdate), mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
-    for i in 1:length(mc.lattice)
+    for _ in 1:length(mc.lattice)
         site = rand(mc.parameters.rng, 1:length(mc.lattice))
         newSpinState = f(getSpin(mc.lattice, site), mc.parameters.updateParameter, mc.parameters.rng)
         energy += localUpdate(mc, site, newSpinState)
     end
-    mc.statistics.sweeps += 1
+
+    #Conical update adapt parameter (cone angle)
+    adaptiveFactor = 0.5 / (1 - (mc.statistics.acceptedLocalUpdates / mc.statistics.attemptedLocalUpdates))
+    mc.parameters.updateParameter *= adaptiveFactor
+    if mc.parameters.updateParameter > 1.0π
+        mc.parameters.updateParameter = 1.0π
+    end
     return energy
 end
 
 function localSweep(mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
-    return localSweep(mc.parameters.updateFunction, mc, energy)
+    energy = localSweep(mc.parameters.updateFunction, mc, energy)
+    mc.parameters.sweep += 1
+    mc.statistics.sweeps += 1
+    return energy
 end
 
 function microcanonicalSweep!(lattice::Lattice{D,N}, rounds::Int) where {D,N}
@@ -181,21 +189,21 @@ function microcanonicalSweep!(mc::MonteCarlo{T}) where {T<:Lattice}
     return microcanonicalSweep!(mc.lattice, mc.parameters.microcanonicalRoundsPerSweep)
 end
 
-function printStatistics!(mc::MonteCarlo{T}, statistics::MonteCarloStatistics) where {T<:Lattice}
+function printStatistics!(mc::MonteCarlo{T}) where {T<:Lattice}
     t = time()
-    if mc.sweep % mc.reportInterval == 0
+    if mc.parameters.sweep % mc.parameters.reportInterval == 0
         #collect statistics
-        totalSweeps = mc.thermalizationSweeps + mc.measurementSweeps
-        progress = 100.0 * mc.sweep / totalSweeps
-        thermalized = (mc.sweep >= mc.thermalizationSweeps) ? "YES" : "NO"
-        sweeprate = statistics.sweeps / (t - statistics.initializationTime)
+        totalSweeps = mc.parameters.thermalizationSweeps + mc.parameters.measurementSweeps
+        progress = 100.0 * mc.parameters.sweep / totalSweeps
+        thermalized = (mc.parameters.sweep >= mc.parameters.thermalizationSweeps) ? "YES" : "NO"
+        sweeprate = mc.statistics.sweeps / (t - mc.statistics.initializationTime)
         sweeptime = 1.0 / sweeprate
-        eta = (totalSweeps - mc.sweep) / sweeprate
-        localUpdateAcceptanceRate = 100.0 * statistics.acceptedLocalUpdates / statistics.attemptedLocalUpdates
+        eta = (totalSweeps - mc.parameters.sweep) / sweeprate
+        localUpdateAcceptanceRate = 100.0 * mc.statistics.acceptedLocalUpdates / mc.statistics.attemptedLocalUpdates
 
         #print statistics
         str = ""
-        str *= @sprintf("Sweep %d / %d (%.1f%%)", mc.sweep, totalSweeps, progress)
+        str *= @sprintf("Sweep %d / %d (%.1f%%)", mc.parameters.sweep, totalSweeps, progress)
         str *= @sprintf("\t\tETA : %s\n", Dates.format(Dates.now() + Dates.Second(round(Int64, eta)), "dd u yyyy HH:MM:SS"))
         str *= @sprintf("\t\tthermalized : %s\n", thermalized)
         str *= @sprintf("\t\tsweep rate : %.1f sweeps/s\n", sweeprate)
@@ -205,71 +213,63 @@ function printStatistics!(mc::MonteCarlo{T}, statistics::MonteCarloStatistics) w
         print(str)
 
         #reset statistics
-        statistics = MonteCarloStatistics()
+        mc.statistics = MonteCarloStatistics()
     end
 end
 
 
 function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
     #init IO
-    restrictTheta = 1.0π
     enableOutput = typeof(outfile) != Nothing
     if enableOutput
         isfile(outfile) && error("File ", outfile, " already exists. Terminating.")
     end
 
-    if mc.microcanonicalRoundsPerSweep != 0
+    #Check microcanonical conditions apply
+    if mc.parameters.microcanonicalRoundsPerSweep != 0
         for site in 1:length(mc.lattice)
-            if getInteractionOnsite(mc.lattice, site) != SpinMC.InteractionMatrix(zeros(9)...)
+            if getInteractionOnsite(mc.lattice, site) != @SMatrix zeros(3, 3)
                 error("Microcanonical updates are only supported for models without on-size interactions.")
             end
         end
     end
 
     #init spin configuration
-    if (mc.sweep == 0) && mc.randomizeInitialConfiguration
+    if (mc.parameters.sweep == 0) && mc.parameters.randomizeInitialConfiguration
         initSpinConfiguration!(mc)
     end
 
     siteList = calcTriangles(mc.lattice)
 
     #init Monte Carlo run
-    totalSweeps = mc.thermalizationSweeps + mc.measurementSweeps
+    totalSweeps = mc.parameters.thermalizationSweeps + mc.parameters.measurementSweeps
     energy = getEnergy(mc.lattice)
 
     #launch Monte Carlo run
     lastCheckpointTime = time()
-    statistics = MonteCarloStatistics()
-    rank == 0 && @printf("Simulation started on %s.\n\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
+    #statistics = MonteCarloStatistics()
+    #rank == 0 && @printf("Simulation started on %s.\n\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
+    @printf("Simulation started on %s.\n\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
 
-    while mc.sweep < totalSweeps
+    while mc.parameters.sweep < totalSweeps
         #perform local sweep
-        energy = localSweep(mc, statistics, energy, restrictTheta=restrictTheta)
+        energy = localSweep(mc, energy)
         #perform microcanonical sweep
-        if (mc.microcanonicalRoundsPerSweep != 0) &&
-           (mc.sweep % mc.microcanonicalRoundsPerSweep) == 0
+        if (mc.parameters.microcanonicalRoundsPerSweep != 0) &&
+           (mc.parameters.sweep % mc.parameters.microcanonicalRoundsPerSweep) == 0
             microcanonicalSweep!(mc)
         end
         #perform measurement
-        if mc.sweep >= mc.thermalizationSweeps
-            if mc.sweep % mc.measurementRate == 0
+        if mc.parameters.sweep >= mc.parameters.thermalizationSweeps
+            if mc.parameters.sweep % mc.parameters.measurementRate == 0
                 performMeasurements!(mc.observables, mc.lattice, energy, siteList)
             end
         end
-        #increment sweep
-        statistics.sweeps += 1
-        mc.sweep += 1
 
         #runtime statistics
-        printStatistics!(mc, statistics)
-        adaptiveFactor = 0.5 / (1 - (statistics.acceptedLocalUpdates / statistics.attemptedLocalUpdates))
-        restrictTheta = restrictTheta * adaptiveFactor
-        if restrictTheta > 1.0π
-            restrictTheta = 1.0π
-        end
-        if (mc.sweep % mc.reportInterval) == 0
-            println("adaptiveFactor is $adaptiveFactor")
-            println("restrictTheta is $restrictTheta")
+        printStatistics!(mc)
+        if (mc.parameters.sweep % mc.parameters.reportInterval) == 0
+            println("update parameter is $(mc.parameters.updateParameter)")
         end
 
         #write checkpoint
