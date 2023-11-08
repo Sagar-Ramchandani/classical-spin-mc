@@ -218,8 +218,7 @@ function printStatistics!(mc::MonteCarlo{T}) where {T<:Lattice}
     end
 end
 
-
-function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
+function sanityChecks!(mc::MonteCarlo{T}, outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
     #init IO
     enableOutput = typeof(outfile) != Nothing
     if enableOutput
@@ -234,6 +233,12 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
             end
         end
     end
+    return nothing
+end
+
+function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
+
+    sanityChecks!(mc, outfile)
 
     #init spin configuration
     if (mc.parameters.sweep == 0) && mc.parameters.randomizeInitialConfiguration
@@ -364,10 +369,10 @@ end
 
 function run!(mc::MonteCarlo{T}, allBetas::Vector{Float64},
     channelsUp, channelsDown;
-    outfile::Union{String,Expr,Nothing}=nothing, resetSpins::Bool=true) where {T<:Lattice}
+    outfile::Union{String,Expr,Nothing}=nothing) where {T<:Lattice}
+    sanityChecks!(mc, outfile)
     rank = myid() - 1
     nSimulations = nworkers()
-    restrictTheta = 1.0π
     if rank == 1
         labels = [1]
     elseif rank == length(allBetas)
@@ -378,21 +383,6 @@ function run!(mc::MonteCarlo{T}, allBetas::Vector{Float64},
     push!(mc.observables.labels, first(labels))
     println("Running replica exchanges across $(nSimulations) simulations")
 
-    #init IO
-    enableOutput = (typeof(outfile) != Nothing)
-    if enableOutput
-        if isfile(outfile)
-            error("File $(outfile) already exists. Terminating all simulations.")
-        end
-    end
-
-    if mc.microcanonicalRoundsPerSweep != 0
-        for site in 1:length(mc.lattice)
-            if getInteractionOnsite(mc.lattice, site) != SpinMC.InteractionMatrix(zeros(9)...)
-                error("Microcanonical updates are only supported for models without on-size interactions.")
-            end
-        end
-    end
 
     #init spin configuration
     if (mc.sweep == 0) && mc.randomizeInitialConfiguration
