@@ -209,6 +209,7 @@ function printStatistics!(mc::MonteCarlo{T}) where {T<:Lattice}
         str *= @sprintf("\t\tsweep rate : %.1f sweeps/s\n", sweeprate)
         str *= @sprintf("\t\tsweep duration : %.3f ms\n", sweeptime * 1000)
         str *= @sprintf("\t\tupdate acceptance rate: %.2f%%\n", localUpdateAcceptanceRate)
+        str *= @sprintf("\t\tupdate parameter: %.3f \n", mc.parameters.updateParameter)
         str *= @sprintf("\n")
         print(str)
 
@@ -225,7 +226,7 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
         isfile(outfile) && error("File ", outfile, " already exists. Terminating.")
     end
 
-    #Check microcanonical conditions apply
+    #Check if microcanonical conditions apply
     if mc.parameters.microcanonicalRoundsPerSweep != 0
         for site in 1:length(mc.lattice)
             if getInteractionOnsite(mc.lattice, site) != @SMatrix zeros(3, 3)
@@ -247,8 +248,6 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
 
     #launch Monte Carlo run
     lastCheckpointTime = time()
-    #statistics = MonteCarloStatistics()
-    #rank == 0 && @printf("Simulation started on %s.\n\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
     @printf("Simulation started on %s.\n\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
 
     while mc.parameters.sweep < totalSweeps
@@ -268,9 +267,6 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
 
         #runtime statistics
         printStatistics!(mc)
-        if (mc.parameters.sweep % mc.parameters.reportInterval) == 0
-            println("update parameter is $(mc.parameters.updateParameter)")
-        end
 
         #write checkpoint
         if enableOutput
@@ -294,11 +290,11 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
     return nothing
 end
 
-function replicaExchange!(mc::MonteCarlo{T}, statistics::MonteCarloStatistics, energy::Float64, allBetas::Vector{Float64}, channelsUp, channelsDown, label) where {T<:Lattice}
+function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, allBetas::Vector{Float64}, channelsUp, channelsDown, label) where {T<:Lattice}
     #determine replica partner rank
     rank = myid() - 1
     numberWorkers = length(allBetas)
-    if iseven(mc.sweep ÷ mc.replicaExchangeRate)
+    if iseven(mc.parameters.sweep ÷ mc.parameters.replicaExchangeRate)
         partnerRank = iseven(rank) ? rank + 1 : rank - 1
     else
         partnerRank = iseven(rank) ? rank - 1 : rank + 1
@@ -317,12 +313,12 @@ function replicaExchange!(mc::MonteCarlo{T}, statistics::MonteCarloStatistics, e
         partnerEnergy = take!(chTake)
 
         #check acceptance of new configuration
-        statistics.attemptedReplicaExchanges += 1
+        mc.statistics.attemptedReplicaExchanges += 1
         exchangeAccepted = false
 
         if iseven(rank)
             p = exp(-(allBetas[rank] - allBetas[partnerRank]) * (partnerEnergy - energy))
-            exchangeAccepted = (rand(mc.rng) < min(1.0, p)) ? true : false
+            exchangeAccepted = (rand(mc.parameters.rng) < min(1.0, p)) ? true : false
             put!(chPut, exchangeAccepted)
         else
             exchangeAccepted = take!(chTake)
@@ -340,7 +336,7 @@ function replicaExchange!(mc::MonteCarlo{T}, statistics::MonteCarloStatistics, e
                 label = 1
             end
 
-            statistics.acceptedReplicaExchanges += 1
+            mc.statistics.acceptedReplicaExchanges += 1
         end
     end
     return (energy, label)
@@ -352,10 +348,10 @@ function anneal(mc::MonteCarlo{T}, betas::Vector{Float64}; outfile::Union{String
     for (i, beta) in enumerate(betas)
         #create one simulation for each provided beta based on the specified mc template
         simulations[i] = deepcopy(mc)
-        simulations[i].beta = beta
+        simulations[i].parameters.beta = beta
         if i != 1
             #if this is not the first simulation, copy spin configuration from the previous one
-            simulations[i].randomizeInitialConfiguration = false
+            simulations[i].parameters.randomizeInitialConfiguration = false
             simulations[i].lattice = deepcopy(simulations[i-1].lattice)
         end
         #set outfile name for current simulation and run
