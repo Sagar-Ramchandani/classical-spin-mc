@@ -104,9 +104,9 @@ function performMeasurements!(observables::Observables, lattice::T, energy::Floa
     push!(observables.quadMagnetization, m4)
 
     #Measuring planar magnetization and z6
-    mPlanar, z6 = getZ6(lattice)
-    push!(observables.z6, z6)
-    push!(observables.mPlanar, mPlanar)
+    #mPlanar, z6 = getZ6(lattice)
+    #push!(observables.z6, z6)
+    #push!(observables.mPlanar, mPlanar)
 
     #measure spin correlations
     push!(observables.correlation, getCorrelation(lattice))
