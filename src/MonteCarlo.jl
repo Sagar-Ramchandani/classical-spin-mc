@@ -282,7 +282,7 @@ function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, allBetas::Vector{F
     return (energy, label)
 end
 
-function printStatistics!(mc::MonteCarlo{T}) where {T<:Lattice}
+function printStatistics!(mc::MonteCarlo{T}; replica=false) where {T<:Lattice}
     t = time()
     if mc.parameters.sweep % mc.parameters.reportInterval == 0
         #collect statistics
@@ -303,6 +303,10 @@ function printStatistics!(mc::MonteCarlo{T}) where {T<:Lattice}
         str *= @sprintf("\t\tsweep duration : %.3f ms\n", sweeptime * 1000)
         str *= @sprintf("\t\tupdate acceptance rate: %.2f%%\n", localUpdateAcceptanceRate)
         str *= @sprintf("\t\tupdate parameter: %.3f \n", mc.parameters.updateParameter)
+        if replica
+            str *= @sprintf("\t\treplica acceptanced : %.3f \n", mc.statistics.acceptedReplicaExchanges)
+            str *= @sprintf("\t\treplica attempted : %.3f \n", mc.statistics.attemptedReplicaExchanges)
+        end
         str *= @sprintf("\n")
         print(str)
 
@@ -437,43 +441,42 @@ end
 function run!(mc::MonteCarlo{T}, channelsUp::Vector{RemoteChannel{Channel{C}}},
     channelsDown::Vector{RemoteChannel{Channel{C}}},
     outfile::Union{String,Nothing}=nothing) where {T<:Lattice,C}
+
     sanityChecks!(mc, outfile)
     rank = myid() - 1
-    #Preallocate the vector labels here by checking for the measurementSweeps//replicaExchangeRate
-    labels = Vector{Int}(undef, floor(Int, mc.parameters.measurementSweeps / mc.parameters.replicaExchangeRate) + 1)
     nSimulations = nworkers()
+    labels = Vector{Int}(undef, floor(Int, mc.parameters.measurementSweeps / mc.parameters.replicaExchangeRate) + 1)
     if rank == 1
-        labels[1] = 1
+        currentLabel = 1
     elseif rank == length(allBetas)
-        labels[1] = -1
+        currentLabel = -1
     else
-        labels[1] = 0
+        currentLabel = 0
     end
+    labels[1] = currentLabel
+
     println("Running replica exchanges across $(nSimulations) simulations")
 
 
     #init spin configuration
-    if (mc.parameters.sweep == 0) && mc.parameters.randomizeInitialConfiguration
-        initSpinConfiguration!(mc)
-    end
+    initSpinConfiguration!(mc)
 
     #Possibly move the output of calcTriangles into the observables object
     siteList = calcTriangles(mc.lattice)
 
     #init Monte Carlo run
-    totalSweeps = mc.thermalizationSweeps + mc.measurementSweeps
+    totalSweeps = mc.parameters.thermalizationSweeps + mc.parameters.measurementSweeps
     energy = getEnergy(mc.lattice)
 
     #launch Monte Carlo run
     lastCheckpointTime = time()
-    statistics = MonteCarloStatistics()
     if rank == 1
         @printf("Simulation started on %s.\n\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
     end
 
     while mc.sweep < totalSweeps
         #perform local sweep
-        energy = localSweep(mc, statistics, energy, restrictTheta=restrictTheta)
+        energy = localSweep(mc, energy)
 
         #perform microcanonical sweep
         if (mc.microcanonicalRoundsPerSweep != 0) &&
@@ -482,82 +485,27 @@ function run!(mc::MonteCarlo{T}, channelsUp::Vector{RemoteChannel{Channel{C}}},
         end
 
         #perform replica exchange
-        if mc.sweep % mc.replicaExchangeRate == 0
-            energy, currentLabel = replicaExchange!(mc, statistics, energy, allBetas, channelsUp, channelsDown, last(labels))
-            push!(labels, currentLabel)
+        if mc.parameters.sweep % mc.replicaExchangeRate == 0
+            energy, currentLabel = replicaExchange!(mc, energy, allBetas, channelsUp, channelsDown, currentLabel)
+            labels[floor(Int, mc.parameters.sweep / mc.replicaExchangeRate)+1] = currentLabel
             push!(mc.observables.labels, currentLabel)
         end
 
         #perform measurement
-        if mc.sweep >= mc.thermalizationSweeps
-            if mc.sweep % mc.measurementRate == 0
+        if mc.parameters.sweep >= mc.parameters.thermalizationSweeps
+            if mc.parameters.sweep % mc.parameters.measurementRate == 0
                 performMeasurements!(mc.observables, mc.lattice, energy, siteList)
             end
         end
 
-        #increment sweep
-        statistics.sweeps += 1
-        mc.sweep += 1
-
-        adaptiveFactor = 0.5 / (1 - (statistics.acceptedLocalUpdates / statistics.attemptedLocalUpdates))
-        restrictTheta = restrictTheta * adaptiveFactor
-        if restrictTheta > 1.0π
-            restrictTheta = 1.0π
-        end
-
         #runtime statistics
-        t = time()
-        if mc.sweep % mc.reportInterval == 0
-            #collect statistics
-            progress = 100.0 * mc.sweep / totalSweeps
-            thermalized = (mc.sweep >= mc.thermalizationSweeps) ? "YES" : "NO"
-            sweeprate = statistics.sweeps / (t - statistics.initializationTime)
-            sweeptime = 1.0 / sweeprate
-            eta = (totalSweeps - mc.sweep) / sweeprate
-
-            localUpdateAcceptanceRate = 100.0 * statistics.acceptedLocalUpdates / statistics.attemptedLocalUpdates
-            #replica statistics
-            replicaExchangeAcceptanceRate = 100.0 * statistics.acceptedReplicaExchanges / statistics.attemptedReplicaExchanges
-            push!(mc.observables.replicaAcceptance, replicaExchangeAcceptanceRate)
-            #allLocalAppectanceRate = zeros(commSize)
-            #allLocalAppectanceRate[rank + 1] = localUpdateAcceptanceRate
-            #MPI.Allgather!(UBuffer(allLocalAppectanceRate, 1), MPI.COMM_WORLD)
-            #allReplicaExchangeAcceptanceRate = zeros(commSize)
-            #allReplicaExchangeAcceptanceRate[rank + 1] = replicaExchangeAcceptanceRate
-            #MPI.Allgather!(UBuffer(allReplicaExchangeAcceptanceRate, 1), MPI.COMM_WORLD)
-
-            #print statistics
-            if rank == 1
-                str = ""
-                str *= @sprintf("Sweep %d / %d (%.1f%%)", mc.sweep, totalSweeps, progress)
-                str *= @sprintf("\t\tETA : %s\n", Dates.format(Dates.now() + Dates.Second(round(Int64, eta)), "dd u yyyy HH:MM:SS"))
-                str *= @sprintf("\t\tthermalized : %s\n", thermalized)
-                str *= @sprintf("\t\tsweep rate : %.1f sweeps/s\n", sweeprate)
-                str *= @sprintf("\t\tsweep duration : %.3f ms\n", sweeptime * 1000)
-                str *= @sprintf("\t\treplica acceptanced : %.3f \n", statistics.acceptedReplicaExchanges)
-                str *= @sprintf("\t\treplica attempted : %.3f \n", statistics.attemptedReplicaExchanges)
-
-                #if enableMPI
-                #    for n in 1:commSize
-                #        str *= @sprintf("\t\tsimulation %d update acceptance rate: %.2f%%\n", n - 1, allLocalAppectanceRate[n])
-                #        str *= @sprintf("\t\tsimulation %d replica exchange acceptance rate : %.2f%%\n", n - 1, allReplicaExchangeAcceptanceRate[n])
-                #    end
-                #else
-                #    str *= @sprintf("\t\tupdate acceptance rate: %.2f%%\n", localUpdateAcceptanceRate)
-                #end
-                str *= @sprintf("\t\tupdate acceptance rate: %.2f%%\n", localUpdateAcceptanceRate)
-                str *= @sprintf("\n")
-                print(str)
-            end
-
-            #reset statistics
-            statistics = MonteCarloStatistics()
+        if rank == 1
+            printStatistics!(mc, replica=true)
         end
 
         #write checkpoint
         if enableOutput
             checkpointPending = time() - lastCheckpointTime >= mc.checkpointInterval
-            #    enableMPI && (checkpointPending = MPIBcastBool(checkpointPending, 0, MPI.COMM_WORLD))
             if checkpointPending
                 writeMonteCarlo(outfile, mc)
                 lastCheckpointTime = time()
@@ -574,5 +522,5 @@ function run!(mc::MonteCarlo{T}, channelsUp::Vector{RemoteChannel{Channel{C}}},
 
     #return
     rank == 1 && @printf("Simulation finished on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
-    return (labels)
+    return nothing
 end
