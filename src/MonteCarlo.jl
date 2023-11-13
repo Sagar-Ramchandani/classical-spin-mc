@@ -228,6 +228,58 @@ function microcanonicalSweep!(mc::MonteCarlo{T}) where {T<:Lattice}
     return microcanonicalSweep!(mc.lattice, mc.parameters.microcanonicalRoundsPerSweep, mc.parameters.rng)
 end
 
+function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, allBetas::Vector{Float64}, channelsUp, channelsDown, label) where {T<:Lattice}
+    #determine replica partner rank
+    rank = myid() - 1
+    numberWorkers = length(allBetas)
+    if iseven(mc.parameters.sweep ÷ mc.parameters.replicaExchangeRate)
+        partnerRank = iseven(rank) ? rank + 1 : rank - 1
+    else
+        partnerRank = iseven(rank) ? rank - 1 : rank + 1
+    end
+    if partnerRank >= 1 && partnerRank <= numberWorkers
+        if partnerRank > rank
+            chPut = channelsUp[2]
+            chTake = channelsDown[2]
+        else
+            chPut = channelsDown[1]
+            chTake = channelsUp[1]
+        end
+        #put own energy on remoteChannel
+        put!(chPut, energy)
+        #Take partner energy from remoteChannel
+        partnerEnergy = take!(chTake)
+
+        #check acceptance of new configuration
+        mc.statistics.attemptedReplicaExchanges += 1
+        exchangeAccepted = false
+
+        if iseven(rank)
+            p = exp(-(allBetas[rank] - allBetas[partnerRank]) * (partnerEnergy - energy))
+            exchangeAccepted = (rand(mc.parameters.rng) < min(1.0, p)) ? true : false
+            put!(chPut, exchangeAccepted)
+        else
+            exchangeAccepted = take!(chTake)
+        end
+        if (exchangeAccepted)
+            energy = partnerEnergy
+            put!(chPut, mc.lattice.spins)
+            mc.lattice.spins = take!(chTake)
+            put!(chPut, label)
+            label = take!(chTake)
+            if rank == numberWorkers
+                label = -1
+            end
+            if rank == 1
+                label = 1
+            end
+
+            mc.statistics.acceptedReplicaExchanges += 1
+        end
+    end
+    return (energy, label)
+end
+
 function printStatistics!(mc::MonteCarlo{T}) where {T<:Lattice}
     t = time()
     if mc.parameters.sweep % mc.parameters.reportInterval == 0
@@ -274,6 +326,12 @@ function sanityChecks(mc::MonteCarlo{T}, outfile::Union{String,Nothing}=nothing)
     end
     return enableOutput
 end
+
+"""
+--------------------------------------------------------------------------------
+Monte Carlo run! Functions
+--------------------------------------------------------------------------------
+"""
 
 function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
 
@@ -334,58 +392,6 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
     return nothing
 end
 
-function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, allBetas::Vector{Float64}, channelsUp, channelsDown, label) where {T<:Lattice}
-    #determine replica partner rank
-    rank = myid() - 1
-    numberWorkers = length(allBetas)
-    if iseven(mc.parameters.sweep ÷ mc.parameters.replicaExchangeRate)
-        partnerRank = iseven(rank) ? rank + 1 : rank - 1
-    else
-        partnerRank = iseven(rank) ? rank - 1 : rank + 1
-    end
-    if partnerRank >= 1 && partnerRank <= numberWorkers
-        if partnerRank > rank
-            chPut = channelsUp[2]
-            chTake = channelsDown[2]
-        else
-            chPut = channelsDown[1]
-            chTake = channelsUp[1]
-        end
-        #put own energy on remoteChannel
-        put!(chPut, energy)
-        #Take partner energy from remoteChannel
-        partnerEnergy = take!(chTake)
-
-        #check acceptance of new configuration
-        mc.statistics.attemptedReplicaExchanges += 1
-        exchangeAccepted = false
-
-        if iseven(rank)
-            p = exp(-(allBetas[rank] - allBetas[partnerRank]) * (partnerEnergy - energy))
-            exchangeAccepted = (rand(mc.parameters.rng) < min(1.0, p)) ? true : false
-            put!(chPut, exchangeAccepted)
-        else
-            exchangeAccepted = take!(chTake)
-        end
-        if (exchangeAccepted)
-            energy = partnerEnergy
-            put!(chPut, mc.lattice.spins)
-            mc.lattice.spins = take!(chTake)
-            put!(chPut, label)
-            label = take!(chTake)
-            if rank == numberWorkers
-                label = -1
-            end
-            if rank == 1
-                label = 1
-            end
-
-            mc.statistics.acceptedReplicaExchanges += 1
-        end
-    end
-    return (energy, label)
-end
-
 function run!(mcs::MonteCarloAnnealing; outfile::Union{String,Nothing}=nothing)
     for (i, mc) in enumerate(mcs.MonteCarloObjects)
         if i != 1
@@ -397,26 +403,57 @@ function run!(mcs::MonteCarloAnnealing; outfile::Union{String,Nothing}=nothing)
     end
 end
 
-function run!(mc::MonteCarlo{T}, allBetas::Vector{Float64},
-    channelsUp, channelsDown;
-    outfile::Union{String,Expr,Nothing}=nothing) where {T<:Lattice}
+mutable struct MonteCarloExchange{T} <: AbstractMonteCarlo where {T}
+    MonteCarloObjects::Vector{MonteCarlo}
+    betas::Vector{Float64}
+    channelsUp::Vector{RemoteChannel{Channel{T}}}
+    channelsDown::Vector{RemoteChannel{Channel{T}}}
+end
+
+function MonteCarloExchange(mc::MonteCarlo, betas::Vector{Float64})
+    simulations = Vector{MonteCarlo}(undef, length(betas))
+
+    #Check if betas are sorted in ascending order else sorted them
+    if !(issorted(betas))
+        @warn "Input βs are not sorted. Sorting them anyways."
+        sort!(betas)
+    end
+
+    for (i, beta) in enumerate(betas)
+        #create one simulation for each provided beta based on the specified mc template
+        simulations[i] = deepcopy(mc)
+        simulations[i].parameters.beta = beta
+    end
+    return MonteCarloExchange(simulations, betas, createChannels()...)
+end
+
+function run!(mcs::MonteCarloExchange, outfile::Union{String,Nothing}=nothing)
+    pmap((i) -> fetch(@spawnat i run!(mcs.MonteCarloObjects[i-1],
+            mcs.channelsUp[i-1, i], mcs.channelsDown[i-1:i],
+            outfile=(outfile === nothing ? outfile : outfile * "." * string(i - 1)))),
+        workers())
+end
+
+function run!(mc::MonteCarlo{T}, channelsUp::Vector{RemoteChannel{Channel{C}}},
+    channelsDown::Vector{RemoteChannel{Channel{C}}},
+    outfile::Union{String,Nothing}=nothing) where {T<:Lattice,C}
     sanityChecks!(mc, outfile)
     rank = myid() - 1
     #Preallocate the vector labels here by checking for the measurementSweeps//replicaExchangeRate
+    labels = Vector{Int}(undef, floor(Int, mc.parameters.measurementSweeps / mc.parameters.replicaExchangeRate) + 1)
     nSimulations = nworkers()
     if rank == 1
-        labels = [1]
+        labels[1] = 1
     elseif rank == length(allBetas)
-        labels = [-1]
+        labels[1] = -1
     else
-        labels = [0]
+        labels[1] = 0
     end
-    push!(mc.observables.labels, first(labels))
     println("Running replica exchanges across $(nSimulations) simulations")
 
 
     #init spin configuration
-    if (mc.sweep == 0) && mc.randomizeInitialConfiguration
+    if (mc.parameters.sweep == 0) && mc.parameters.randomizeInitialConfiguration
         initSpinConfiguration!(mc)
     end
 
