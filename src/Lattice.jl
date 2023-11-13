@@ -135,7 +135,7 @@ function Lattice(uc::UnitCell{D}, L::NTuple{D,Int}) where {D}
                 targetSite = tuple(primitiveTarget..., b2)
 
                 interactionSites[j] = siteIndexFromParametrization(targetSite)
-                interactionMatrices[j] = InteractionMatrix(M)
+                interactionMatrices[j] = M
             end
         end
         lattice.interactionSites[i] = NTuple{Ninteractions,Int}(interactionSites)
