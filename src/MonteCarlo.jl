@@ -143,7 +143,7 @@ end
 function localSweep(::typeof(conicalUpdate), mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
     for _ in 1:length(mc.lattice)
         site = rand(mc.parameters.rng, 1:length(mc.lattice))
-        newSpinState = f(getSpin(mc.lattice, site), mc.parameters.updateParameter, mc.parameters.rng)
+        newSpinState = mc.parameters.updateFunction(getSpin(mc.lattice, site), mc.parameters.updateParameter, mc.parameters.rng)
         energy += localUpdate(mc, site, newSpinState)
     end
 
@@ -163,7 +163,7 @@ function localSweep(mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
     return energy
 end
 
-function microcanonicalSweep!(lattice::Lattice{D,N}, rounds::Int) where {D,N}
+function microcanonicalSweep!(lattice::Lattice{D,N}, rounds::Int, rng=Random.GLOBAL_RNG) where {D,N}
     basisLength = length(lattice.unitcell)
     for _ in 1:rounds
         #Deterministic first iteration
@@ -171,14 +171,14 @@ function microcanonicalSweep!(lattice::Lattice{D,N}, rounds::Int) where {D,N}
             sublatticeOrdered = range(i, length(lattice), step=basisLength)
             for site in sublatticeOrdered
                 newSpinState = microcanonicalRotation(lattice, site)
-                setSpin!(mc.lattice, site, newSpinState)
+                setSpin!(lattice, site, newSpinState)
             end
         end
         #Random second iteration
         for i in 1:basisLength
             sublatticeOrdered = range(i, length(lattice), step=basisLength)
             for site in sublatticeOrdered
-                setSpin!(mc.lattice, site, microcanonicalRotationRandom(mc.lattice, site, mc.parameters.rng))
+                setSpin!(lattice, site, microcanonicalRotationRandom(lattice, site, rng))
             end
         end
     end
@@ -186,7 +186,7 @@ function microcanonicalSweep!(lattice::Lattice{D,N}, rounds::Int) where {D,N}
 end
 
 function microcanonicalSweep!(mc::MonteCarlo{T}) where {T<:Lattice}
-    return microcanonicalSweep!(mc.lattice, mc.parameters.microcanonicalRoundsPerSweep)
+    return microcanonicalSweep!(mc.lattice, mc.parameters.microcanonicalRoundsPerSweep, mc.parameters.rng)
 end
 
 function printStatistics!(mc::MonteCarlo{T}) where {T<:Lattice}
@@ -218,7 +218,7 @@ function printStatistics!(mc::MonteCarlo{T}) where {T<:Lattice}
     end
 end
 
-function sanityChecks!(mc::MonteCarlo{T}, outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
+function sanityChecks(mc::MonteCarlo{T}, outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
     #init IO
     enableOutput = typeof(outfile) != Nothing
     if enableOutput
@@ -233,12 +233,12 @@ function sanityChecks!(mc::MonteCarlo{T}, outfile::Union{String,Nothing}=nothing
             end
         end
     end
-    return nothing
+    return enableOutput
 end
 
 function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
 
-    sanityChecks!(mc, outfile)
+    enableOutput = sanityChecks(mc, outfile)
 
     #init spin configuration
     if (mc.parameters.sweep == 0) && mc.parameters.randomizeInitialConfiguration
@@ -372,6 +372,7 @@ function run!(mc::MonteCarlo{T}, allBetas::Vector{Float64},
     outfile::Union{String,Expr,Nothing}=nothing) where {T<:Lattice}
     sanityChecks!(mc, outfile)
     rank = myid() - 1
+    #Preallocate the vector labels here by checking for the measurementSweeps//replicaExchangeRate
     nSimulations = nworkers()
     if rank == 1
         labels = [1]
@@ -389,6 +390,7 @@ function run!(mc::MonteCarlo{T}, allBetas::Vector{Float64},
         initSpinConfiguration!(mc)
     end
 
+    #Possibly move the output of calcTriangles into the observables object
     siteList = calcTriangles(mc.lattice)
 
     #init Monte Carlo run
