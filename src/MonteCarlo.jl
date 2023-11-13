@@ -153,7 +153,9 @@ function initSpinConfiguration!(lattice::Lattice{D,N}, f::Function, rng=Random.G
 end
 
 function initSpinConfiguration!(mc::MonteCarlo{T}) where {T<:Lattice}
-    initSpinConfiguration!(mc.lattice, mc.parameters.updateFunction, mc.parameters.rng)
+    if (mc.parameters.sweep == 0) && mc.parameters.randomizeInitialConfiguration
+        initSpinConfiguration!(mc.lattice, mc.parameters.updateFunction, mc.parameters.rng)
+    end
 end
 
 function localUpdate(mc::MonteCarlo{T,P}, proposalSite::Int64, newSpinState::SVector{3,Float64}) where {T<:Lattice,P<:MonteCarloParameters}
@@ -338,9 +340,7 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
     enableOutput = sanityChecks(mc, outfile)
 
     #init spin configuration
-    if (mc.parameters.sweep == 0) && mc.parameters.randomizeInitialConfiguration
-        initSpinConfiguration!(mc)
-    end
+    initSpinConfiguration!(mc)
 
     siteList = calcTriangles(mc.lattice)
 
