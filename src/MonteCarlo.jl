@@ -405,7 +405,7 @@ function run!(mcs::MonteCarloAnnealing; outfile::Union{String,Nothing}=nothing)
     end
 end
 
-mutable struct MonteCarloExchange{T} where {T}
+mutable struct MonteCarloExchange{T}
     MonteCarloObjects::Vector{MonteCarlo}
     betas::Vector{Float64}
     channelsUp::Vector{RemoteChannel{Channel{T}}}
