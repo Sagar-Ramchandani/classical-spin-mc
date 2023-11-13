@@ -7,9 +7,11 @@ const updateParameterDict = Dict(conicalUpdate => 1.0π)
 
 """
 --------------------------------------------------------------------------------
-Monte Carlo Structs
+Monte Carlo Structs and Constructors
 --------------------------------------------------------------------------------
 """
+
+abstract type AbstractMonteCarlo end
 
 mutable struct MonteCarloStatistics
     sweeps::Int
@@ -71,7 +73,7 @@ function MonteCarloParameters(
         rng, seed, sweep, updateFunction, updateParameter)
 end
 
-mutable struct MonteCarlo{T<:Lattice,P<:MonteCarloParameters}
+mutable struct MonteCarlo{T<:Lattice,P<:MonteCarloParameters} <: AbstractMonteCarlo
     lattice::T
     parameters::P
     statistics::MonteCarloStatistics
@@ -98,6 +100,43 @@ function MonteCarlo(lattice::Lattice{D,N}, parameters::Tuple{Float64,Int64,Int64
     pm = MonteCarloParameters(parameters...)
     obs = Observables(lattice, storeAllMeasurements)
     return MonteCarlo(lattice, pm, obs)
+end
+
+mutable struct MonteCarloAnnealing{} <: AbstractMonteCarlo
+    MonteCarloObjects::Vector{MonteCarlo}
+end
+
+function MonteCarloAnnealing(mc::MonteCarlo, betas::Vector{Float64})
+    simulations = Vector{MonteCarlo}(undef, length(betas))
+
+    #Check if betas are sorted in descending order else sorted them
+    if !(issorted(betas, rev=true))
+        @warn "Input βs are not sorted. Sorting them anyways."
+        sort!(betas, rev=true)
+    end
+
+    for (i, beta) in enumerate(betas)
+        #create one simulation for each provided beta based on the specified mc template
+        simulations[i] = deepcopy(mc)
+        simulations[i].parameters.beta = beta
+        if i != 1
+            #if this is not the first simulation, set spin randomization false
+            simulations[i].parameters.randomizeInitialConfiguration = false
+        end
+    end
+    return MonteCarloAnnealing(simulations)
+end
+
+"""
+--------------------------------------------------------------------------------
+Monte Carlo Functions
+--------------------------------------------------------------------------------
+"""
+
+function createChannels()
+    channelsUp = [fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid())) for i in procs()]
+    channelsDown = circshift([fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid())) for i in procs()], -1)
+    return (channelsUp, channelsDown)
 end
 
 function initSpinConfiguration!(lattice::Lattice{D,N}, f::typeof(conicalUpdate), rng=Random.GLOBAL_RNG) where {D,N}
@@ -347,24 +386,15 @@ function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, allBetas::Vector{F
     return (energy, label)
 end
 
-function anneal(mc::MonteCarlo{T}, betas::Vector{Float64}; outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
-    simulations = Vector{MonteCarlo}(undef, length(betas))
-
-    for (i, beta) in enumerate(betas)
-        #create one simulation for each provided beta based on the specified mc template
-        simulations[i] = deepcopy(mc)
-        simulations[i].parameters.beta = beta
+function run!(mcs::MonteCarloAnnealing; outfile::Union{String,Nothing}=nothing)
+    for (i, mc) in enumerate(mcs.MonteCarloObjects)
         if i != 1
-            #if this is not the first simulation, copy spin configuration from the previous one
-            simulations[i].parameters.randomizeInitialConfiguration = false
-            simulations[i].lattice = deepcopy(simulations[i-1].lattice)
+            #If not the first simulation, copy spin configuration from the previous one
+            mcs.MonteCarloObjects[i].lattice = deepcopy(mcs.MonteCarloObjects[i-1]).lattice
         end
-        #set outfile name for current simulation and run
         out = outfile === nothing ? outfile : outfile * "." * string(i - 1)
-        run!(simulations[i], outfile=out)
+        run!(mc, outfile=out)
     end
-
-    return simulations
 end
 
 function run!(mc::MonteCarlo{T}, allBetas::Vector{Float64},
