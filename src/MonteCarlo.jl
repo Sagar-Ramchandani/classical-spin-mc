@@ -230,10 +230,10 @@ function microcanonicalSweep!(mc::MonteCarlo{T}) where {T<:Lattice}
     return microcanonicalSweep!(mc.lattice, mc.parameters.microcanonicalRoundsPerSweep, mc.parameters.rng)
 end
 
-function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, allBetas::Vector{Float64}, channelsUp, channelsDown, label) where {T<:Lattice}
+function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, betas::Vector{Float64}, channelsUp, channelsDown, label) where {T<:Lattice}
     #determine replica partner rank
     rank = myid() - 1
-    numberWorkers = length(allBetas)
+    numberWorkers = length(betas)
     if iseven(mc.parameters.sweep ÷ mc.parameters.replicaExchangeRate)
         partnerRank = iseven(rank) ? rank + 1 : rank - 1
     else
@@ -257,7 +257,7 @@ function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, allBetas::Vector{F
         exchangeAccepted = false
 
         if iseven(rank)
-            p = exp(-(allBetas[rank] - allBetas[partnerRank]) * (partnerEnergy - energy))
+            p = exp(-(betas[rank] - betas[partnerRank]) * (partnerEnergy - energy))
             exchangeAccepted = (rand(mc.parameters.rng) < min(1.0, p)) ? true : false
             put!(chPut, exchangeAccepted)
         else
@@ -433,22 +433,24 @@ end
 
 function run!(mcs::MonteCarloExchange, outfile::Union{String,Nothing}=nothing)
     pmap((i) -> fetch(@spawnat i run!(mcs.MonteCarloObjects[i-1],
-            mcs.channelsUp[i-1, i], mcs.channelsDown[i-1:i],
-            outfile=(outfile === nothing ? outfile : outfile * "." * string(i - 1)))),
+            mcs.betas,
+            mcs.channelsUp[i-1:i], mcs.channelsDown[i-1:i],
+            (outfile === nothing ? outfile : outfile * "." * string(i - 1)))),
         workers())
 end
 
-function run!(mc::MonteCarlo{T}, channelsUp::Vector{RemoteChannel{Channel{C}}},
+function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{RemoteChannel{Channel{C}}},
     channelsDown::Vector{RemoteChannel{Channel{C}}},
     outfile::Union{String,Nothing}=nothing) where {T<:Lattice,C}
 
-    sanityChecks!(mc, outfile)
+    enableOutput = sanityChecks(mc, outfile)
     rank = myid() - 1
     nSimulations = nworkers()
-    labels = Vector{Int}(undef, floor(Int, mc.parameters.measurementSweeps / mc.parameters.replicaExchangeRate) + 1)
+    labels = Vector{Int}(undef, floor(Int,
+        (mc.parameters.thermalizationSweeps + mc.parameters.measurementSweeps) / mc.parameters.replicaExchangeRate) + 1)
     if rank == 1
         currentLabel = 1
-    elseif rank == length(allBetas)
+    elseif rank == nSimulations
         currentLabel = -1
     else
         currentLabel = 0
@@ -474,20 +476,20 @@ function run!(mc::MonteCarlo{T}, channelsUp::Vector{RemoteChannel{Channel{C}}},
         @printf("Simulation started on %s.\n\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
     end
 
-    while mc.sweep < totalSweeps
+    while mc.parameters.sweep < totalSweeps
         #perform local sweep
         energy = localSweep(mc, energy)
 
         #perform microcanonical sweep
-        if (mc.microcanonicalRoundsPerSweep != 0) &&
-           (mc.sweep % mc.microcanonicalRoundsPerSweep) == 0
+        if (mc.parameters.microcanonicalRoundsPerSweep != 0) &&
+           (mc.parameters.sweep % mc.parameters.microcanonicalRoundsPerSweep) == 0
             microcanonicalSweep!(mc)
         end
 
         #perform replica exchange
-        if mc.parameters.sweep % mc.replicaExchangeRate == 0
-            energy, currentLabel = replicaExchange!(mc, energy, allBetas, channelsUp, channelsDown, currentLabel)
-            labels[floor(Int, mc.parameters.sweep / mc.replicaExchangeRate)+1] = currentLabel
+        if mc.parameters.sweep % mc.parameters.replicaExchangeRate == 0
+            energy, currentLabel = replicaExchange!(mc, energy, betas, channelsUp, channelsDown, currentLabel)
+            labels[floor(Int, mc.parameters.sweep / mc.parameters.replicaExchangeRate)+1] = currentLabel
             push!(mc.observables.labels, currentLabel)
         end
 
@@ -505,7 +507,7 @@ function run!(mc::MonteCarlo{T}, channelsUp::Vector{RemoteChannel{Channel{C}}},
 
         #write checkpoint
         if enableOutput
-            checkpointPending = time() - lastCheckpointTime >= mc.checkpointInterval
+            checkpointPending = time() - lastCheckpointTime >= mc.parameters.checkpointInterval
             if checkpointPending
                 writeMonteCarlo(outfile, mc)
                 lastCheckpointTime = time()
