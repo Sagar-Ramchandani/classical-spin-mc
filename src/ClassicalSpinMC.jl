@@ -13,10 +13,14 @@ export Observables
 
 include("Spin.jl")
 export marsagliaSphereUpdate, sphericalUpdate, conicalUpdate,
-    getEnergy, getMagnetization, getMagnetizationPerSite, getCorrelation
+    getEnergy, getMagnetization, getMagnetizationPerSite, getCorrelation,
+    calcTriangles
 
 include("MonteCarlo.jl")
-export MonteCarlo, MonteCarloStatistics, MonteCarloParameters, run!, anneal, initSpinConfiguration!, localSweep, microcanonicalSweep!, replicaExchange!
+export AbstractMonteCarlo, MonteCarlo, MonteCarloStatistics, MonteCarloParameters, MonteCarloAnnealing, MonteCarloExchange,
+    run!, anneal, initSpinConfiguration!, localSweep, microcanonicalSweep!, replicaExchange!,
+    localUpdate, microcanonicalRotation, microcanonicalRotationRandom, printStatistics!, sanityChecks,
+    createChannels
 
 include("IO.jl")
 export writeUnitcell!, readUnitcell,
