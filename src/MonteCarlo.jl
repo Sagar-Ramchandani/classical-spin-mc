@@ -11,8 +11,6 @@ Monte Carlo Structs and Constructors
 --------------------------------------------------------------------------------
 """
 
-abstract type AbstractMonteCarlo end
-
 mutable struct MonteCarloStatistics
     sweeps::Int
     attemptedLocalUpdates::Int
@@ -73,7 +71,7 @@ function MonteCarloParameters(
         rng, seed, sweep, updateFunction, updateParameter)
 end
 
-mutable struct MonteCarlo{T<:Lattice,P<:MonteCarloParameters} <: AbstractMonteCarlo
+mutable struct MonteCarlo{T<:Lattice,P<:MonteCarloParameters}
     lattice::T
     parameters::P
     statistics::MonteCarloStatistics
@@ -102,7 +100,7 @@ function MonteCarlo(lattice::Lattice{D,N}, parameters::Tuple{Float64,Int64,Int64
     return MonteCarlo(lattice, pm, obs)
 end
 
-mutable struct MonteCarloAnnealing{} <: AbstractMonteCarlo
+mutable struct MonteCarloAnnealing{}
     MonteCarloObjects::Vector{MonteCarlo}
 end
 
@@ -407,7 +405,7 @@ function run!(mcs::MonteCarloAnnealing; outfile::Union{String,Nothing}=nothing)
     end
 end
 
-mutable struct MonteCarloExchange{T} <: AbstractMonteCarlo where {T}
+mutable struct MonteCarloExchange{T} where {T}
     MonteCarloObjects::Vector{MonteCarlo}
     betas::Vector{Float64}
     channelsUp::Vector{RemoteChannel{Channel{T}}}

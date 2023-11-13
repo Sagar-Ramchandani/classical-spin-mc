@@ -17,7 +17,7 @@ export marsagliaSphereUpdate, sphericalUpdate, conicalUpdate,
     calcTriangles
 
 include("MonteCarlo.jl")
-export AbstractMonteCarlo, MonteCarlo, MonteCarloStatistics, MonteCarloParameters, MonteCarloAnnealing, MonteCarloExchange,
+export MonteCarlo, MonteCarloStatistics, MonteCarloParameters, MonteCarloAnnealing, MonteCarloExchange,
     run!, anneal, initSpinConfiguration!, localSweep, microcanonicalSweep!, replicaExchange!,
     localUpdate, microcanonicalRotation, microcanonicalRotationRandom, printStatistics!, sanityChecks,
     createChannels
