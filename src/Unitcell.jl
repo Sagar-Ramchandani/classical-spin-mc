@@ -26,13 +26,17 @@ end
 Adds an interaction between spin1 located at basis site `b1` of the given `unitcell` and spin2 at basis site `b2` in a unit cell that is offset by `offset` lattice vectors. 
 The exchange energy is calculated as spin1'.M.spin2. 
 """
-function addInteraction!(unitcell::UnitCell{D}, b1::Int, b2::Int, M::SMatrix{3,3,Float64,9}, offset::NTuple{D,Int}=Tuple(zeros(Int, D))) where {D}
-    if (b1 == b2) && (offset == Tuple(zeros(Int, D)))
-        #Possibly automatically add using setInteractionOnSite with a warning?
-        error("Interaction cannot be local. Use setInteractionOnsite!() instead.")
+function addInteraction!(unitcell::UnitCell{D}, b::Pair{Int,Int}, M::SMatrix{3,3,Float64,9}, offset::NTuple{D,Int}=Tuple(zeros(Int, D))) where {D}
+    if (b.first == b.second) && (offset == Tuple(zeros(Int, D)))
+        @warn "Local Interaction detected, using setInteractionOnSite!() instead"
+        setInteractionOnsite!(unitcell, b.first, M)
     end
-    push!(unitcell.interactions, (b1 => b2, offset, M))
+    push!(unitcell.interactions, (b, offset, M))
     return nothing
+end
+
+function addInteraction!(unitcell::UnitCell{D}, b1::Int, b2::Int, M::SMatrix{3,3,Float64,9}, offset::NTuple{D,Int}=Tuple(zeros(Int, D))) where {D}
+    addInteraction!(unitcell, b1 => b2, M, offset)
 end
 
 """
@@ -43,7 +47,6 @@ function setInteractionOnsite!(unitcell::UnitCell{D}, b::Int, M::SMatrix{3,3,Flo
     unitcell.interactionsOnsite[b] = M
     return nothing
 end
-
 
 """
 Sets the magnetic field for a spin at the basis site 'b'.
@@ -65,6 +68,24 @@ end
 
 function addBasisSite!(unitcell::UnitCell{D}, position::NTuple{D,Float64}) where {D}
     addBasisSite!(unitcell, SVector(position))
+end
+
+function addBasisSites!(unitcell::UnitCell{D}, positions::Vector{SVector{D,Float64}}) where {D}
+    for position in positions
+        addBasisSite!(unitcell, position)
+    end
+    return nothing
+end
+
+function addBasisSites!(unitcell::UnitCell{D}, positions::Vector{NTuple{D,Float64}}) where {D}
+    for position in positions
+        addBasisSite!(unitcell, SVector(position))
+    end
+end
+
+function resetBasis!(unitcell::UnitCell{D}) where {D}
+    unitcell.basis = Vector{SVector{D,Float64}}(undef, 0)
+    return nothing
 end
 
 function Base.length(unitcell::UnitCell{D})::Int where {D}
