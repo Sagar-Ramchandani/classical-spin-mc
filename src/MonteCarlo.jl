@@ -26,23 +26,23 @@ function Base.:show(io::IO, statistics::MonteCarloStatistics)
     println(io, "MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $(statistics.initializationTime)")
 end
 
-mutable struct MonteCarloParameters{U<:AbstractRNG,UP<:Function}
+@kwdef mutable struct MonteCarloParameters{U<:AbstractRNG,UP<:Function}
     beta::Float64
     thermalizationSweeps::Int
     measurementSweeps::Int
-    measurementRate::Int
-    microcanonicalRoundsPerSweep::Int
-    replicaExchangeRate::Int
-    randomizeInitialConfiguration::Bool
-    reportInterval::Int
-    checkpointInterval::Int
+    measurementRate::Int = 1
+    microcanonicalRoundsPerSweep::Int = 0
+    replicaExchangeRate::Int = 10
+    randomizeInitialConfiguration::Bool = true
+    reportInterval::Int = round(Int, 0.05 * (thermalizationSweeps + measurementSweeps))
+    checkpointInterval::Int = 3600
 
-    rng::U
-    seed::UInt
-    sweep::Int
+    rng::U = copy(Random.GLOBAL_RNG)
+    seed::UInt = rand(Random.RandomDevice(), UInt)
+    sweep::Int = 0
 
-    updateFunction::UP
-    updateParameter::Float64
+    updateFunction::UP = sphericalUpdate
+    updateParameter::Float64 = get(updateParameterDict, updateFunction, 0.0)
 end
 
 function Base.:show(io::IO, parameters::MonteCarloParameters)
@@ -52,23 +52,9 @@ end
 function MonteCarloParameters(
     beta::Float64,
     thermalizationSweeps::Int,
-    measurementSweeps::Int;
-    measurementRate::Int=1,
-    microcanonicalRoundsPerSweep::Int=0,
-    replicaExchangeRate::Int=10,
-    randomizeInitialConfiguration=true,
-    reportInterval::Int=round(Int, 0.05 * (thermalizationSweeps + measurementSweeps)),
-    checkpointInterval::Int=3600,
-    rng::U=copy(Random.GLOBAL_RNG),
-    seed::UInt=rand(Random.RandomDevice(), UInt),
-    sweep::Int=0,
-    updateFunction::Function=sphericalUpdate,
-    updateParameter::Float64=get(updateParameterDict, updateFunction, 0.0)) where {U<:AbstractRNG}
+    measurementSweeps::Int)
 
-    return MonteCarloParameters(beta, thermalizationSweeps, measurementSweeps,
-        measurementRate, microcanonicalRoundsPerSweep, replicaExchangeRate,
-        randomizeInitialConfiguration, reportInterval, checkpointInterval,
-        rng, seed, sweep, updateFunction, updateParameter)
+    return MonteCarloParameters(beta=beta, thermalizationSweeps=thermalizationSweeps, measurementSweeps=measurementSweeps)
 end
 
 mutable struct MonteCarlo{T<:Lattice,P<:MonteCarloParameters}
