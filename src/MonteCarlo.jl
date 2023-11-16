@@ -125,6 +125,30 @@ function MonteCarloAnnealing(mc::MonteCarlo, betas::Vector{Float64})
     return MonteCarloAnnealing(simulations)
 end
 
+mutable struct MonteCarloExchange{T}
+    MonteCarloObjects::Vector{MonteCarlo}
+    betas::Vector{Float64}
+    channelsUp::Vector{RemoteChannel{Channel{T}}}
+    channelsDown::Vector{RemoteChannel{Channel{T}}}
+end
+
+function MonteCarloExchange(mc::MonteCarlo, betas::Vector{Float64})
+    simulations = Vector{MonteCarlo}(undef, length(betas))
+
+    #Check if betas are sorted in ascending order else sorted them
+    if !(issorted(betas))
+        @warn "Input βs are not sorted. Sorting them anyways."
+        sort!(betas)
+    end
+
+    for (i, beta) in enumerate(betas)
+        #create one simulation for each provided beta based on the specified mc template
+        simulations[i] = deepcopy(mc)
+        simulations[i].parameters.beta = beta
+    end
+    return MonteCarloExchange(simulations, betas, createChannels()...)
+end
+
 """
 --------------------------------------------------------------------------------
 Monte Carlo Functions
@@ -403,30 +427,6 @@ function run!(mcs::MonteCarloAnnealing; outfile::Union{String,Nothing}=nothing)
         out = outfile === nothing ? outfile : outfile * "." * string(i - 1)
         run!(mc, outfile=out)
     end
-end
-
-mutable struct MonteCarloExchange{T}
-    MonteCarloObjects::Vector{MonteCarlo}
-    betas::Vector{Float64}
-    channelsUp::Vector{RemoteChannel{Channel{T}}}
-    channelsDown::Vector{RemoteChannel{Channel{T}}}
-end
-
-function MonteCarloExchange(mc::MonteCarlo, betas::Vector{Float64})
-    simulations = Vector{MonteCarlo}(undef, length(betas))
-
-    #Check if betas are sorted in ascending order else sorted them
-    if !(issorted(betas))
-        @warn "Input βs are not sorted. Sorting them anyways."
-        sort!(betas)
-    end
-
-    for (i, beta) in enumerate(betas)
-        #create one simulation for each provided beta based on the specified mc template
-        simulations[i] = deepcopy(mc)
-        simulations[i].parameters.beta = beta
-    end
-    return MonteCarloExchange(simulations, betas, createChannels()...)
 end
 
 function run!(mcs::MonteCarloExchange, outfile::Union{String,Nothing}=nothing)
