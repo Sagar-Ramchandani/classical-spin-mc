@@ -1,11 +1,14 @@
 using StaticArrays
-struct UnitCell{D}
+
+@kwdef mutable struct UnitCell{D}
     primitive::NTuple{D,SVector{D,Float64}}
-    basis::Vector{SVector{D,Float64}}
+    basis::Vector{SVector{D,Float64}} = Vector{SVector{D,Float64}}(undef, 0)
     #interactions specified as (basis1=>basis2,offsetPrimitive,M)
-    interactions::Vector{Tuple{Pair{Int,Int},NTuple{D,Int},SMatrix{3,3,Float64,9}}}
-    interactionsOnsite::Vector{SMatrix{3,3,Float64,9}}
-    interactionsField::Vector{SVector{3,Float64}}
+    interactions::Vector{Tuple{Pair{Int,Int},NTuple{D,Int},SMatrix{3,3,Float64,9}}} =
+        Vector{Tuple{Pair{Int,Int},NTuple{D,Int},SMatrix{3,3,Float64,9}}}(undef, 0)
+    interactionsOnsite::Vector{SMatrix{3,3,Float64,9}} = Vector{SMatrix{3,3,Float64,9}}(undef, 0)
+    interactionsField::Vector{SVector{3,Float64}} = Vector{SVector{3,Float64}}(undef, 0)
+    anisotropyFunction::Function = identity
 end
 
 """
@@ -16,12 +19,16 @@ Constructor functions
 
 #Constructor that accepts D number of SVectors as input to use as primitives. 
 function UnitCell(primitive::Vararg{SVector{D,Float64},D}) where {D}
-    return UnitCell{D}(primitive, Vector{SVector{D,Float64}}(undef, 0), Vector{Tuple{Pair{Int,Int},NTuple{D,Int},SMatrix{3,3,Float64,9}}}(undef, 0), Vector{SMatrix{3,3,Float64,9}}(undef, 0), Vector{SVector{3,Float64}}(undef, 0))
+    return UnitCell{D}(primitive=primitive)
 end
 
 #Constructor with support for NTuples that get converted to SVectors.
 function UnitCell(primitive::Vararg{NTuple{D,Float64},D}) where {D}
     return UnitCell(SVector.(primitive)...)
+end
+
+function addAnisotropy!(unitcell::UnitCell{D}, func::F) where {D,F<:Function}
+    unitcell.anisotropyFunction = func
 end
 
 """

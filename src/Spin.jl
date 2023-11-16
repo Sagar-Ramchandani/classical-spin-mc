@@ -64,8 +64,28 @@ function exchangeEnergy(s1::SVector{3,Float64}, M::SMatrix{3,3,Float64,9}, s2::S
     return (s1' * M) * s2
 end
 
+function getAnisotropy(::typeof(identity), lattice::Lattice{D,N})::Float64 where {D,N}
+    return zero(Float64)
+end
+
+function getAnisotropy(::typeof(identity), spin::SVector{3,Float64})::Float64
+    return zero(Float64)
+end
+
+function getAnisotropy(func::F, spin::SVector{3,Float64})::Float64 where {F<:Function}
+    return func(spin)
+end
+
+function getAnisotropy(func::F, lattice::Lattice{D,N})::Float64 where {D,N,F<:Function}
+    energy = zero(Float64)
+    for spin in lattice.spins
+        energy += getAnisotropy(func, spin)
+    end
+    return energy
+end
+
 function getEnergy(lattice::Lattice{D,N})::Float64 where {D,N}
-    energy = 0.0
+    energy = zero(Float64)
     for site in 1:length(lattice)
         s0 = getSpin(lattice, site)
 
@@ -83,6 +103,9 @@ function getEnergy(lattice::Lattice{D,N})::Float64 where {D,N}
 
         #field interaction
         energy += dot(s0, getInteractionField(lattice, site))
+
+        #ansiotropy
+        energy += getAnisotropy(lattice.anisotropyFunction, lattice)
     end
 
     return energy
@@ -106,6 +129,9 @@ function getEnergyDifference(lattice::Lattice{D,N}, site::Int, newState::SVector
 
     #field interaction
     ΔE += dot(ΔS, getInteractionField(lattice, site))
+
+    #ansiotropy
+    ΔE += getAnisotropy(lattice.anisotropyFunction, newState) - getAnisotropy(lattice.anisotropyFunction, oldState)
 
     return ΔE
 end

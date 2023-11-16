@@ -1,5 +1,5 @@
 using StaticArrays
-mutable struct Lattice{D,N}
+mutable struct Lattice{D,N,F}
     size::NTuple{D,Int} #linear dimension (D) of the lattice in number of unit cells
     length::Int #Number of sites in the lattice N_sites
     unitcell::UnitCell{D}
@@ -11,9 +11,10 @@ mutable struct Lattice{D,N}
     interactionMatrices::Vector{NTuple{N,SMatrix{3,3,Float64,9}}} #list of length N_sites, for every site contains all interaction matrices
     interactionOnsite::Vector{SMatrix{3,3,Float64,9}} #list of length N_sites, for every site contains the local onsite interaction matrix
     interactionField::Vector{SVector{3,Float64}} #list of length N_sites, for every site contains the local field
+    anisotropyFunction::F
 
     #Generic fallback method, possibly remove
-    Lattice(D, N) = new{D,N}()
+    Lattice(D, N, F) = new{D,N,F}()
 end
 
 #Add error check for a unitcell with no sites.
@@ -57,7 +58,7 @@ function Lattice(uc::UnitCell{D}, L::NTuple{D,Int}) where {D}
     Ninteractions = findmax([length(interactionTargetSites[i]) for i in 1:length(uc.basis)])[1]
 
     #create lattice struct
-    lattice = Lattice(D, Ninteractions)
+    lattice = Lattice(D, Ninteractions, typeof(uc.anisotropyFunction))
     lattice.size = L
     lattice.length = prod(L) * length(uc.basis)
     lattice.unitcell = uc
@@ -141,6 +142,7 @@ function Lattice(uc::UnitCell{D}, L::NTuple{D,Int}) where {D}
         lattice.interactionSites[i] = NTuple{Ninteractions,Int}(interactionSites)
         lattice.interactionMatrices[i] = NTuple{Ninteractions,SMatrix{3,3,Float64,9}}(interactionMatrices)
     end
+    lattice.anisotropyFunction = uc.anisotropyFunction
     return lattice
 end
 
@@ -148,7 +150,7 @@ function Base.size(lattice::Lattice{D,N}) where {D,N}
     return lattice.size
 end
 
-function Base.length(lattice::Lattice{D,N}) where {D,N}
+function Base.length(lattice::Lattice{D,N})::Int where {D,N}
     return lattice.length
 end
 

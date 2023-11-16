@@ -1,7 +1,7 @@
 module ClassicalSpinMC
 
 include("Unitcell.jl")
-export UnitCell, addInteraction!, setInteractionOnsite!, setField!, addBasisSite!
+export UnitCell, addInteraction!, setInteractionOnsite!, setField!, addBasisSite!, addAnisotropy!
 
 include("Lattice.jl")
 export Lattice, size, length, getSpin, setSpin!,
@@ -13,7 +13,7 @@ export Observables
 
 include("Spin.jl")
 export marsagliaSphereUpdate, sphericalUpdate, conicalUpdate,
-    getEnergy, getMagnetization, getMagnetizationPerSite, getCorrelation,
+    getEnergy, getEnergyDifference, getMagnetization, getMagnetizationPerSite, getCorrelation,
     calcTriangles
 
 include("MonteCarlo.jl")
