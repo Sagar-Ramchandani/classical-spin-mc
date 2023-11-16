@@ -77,14 +77,14 @@ function addBasisSite!(unitcell::UnitCell{D}, position::NTuple{D,Float64}) where
     addBasisSite!(unitcell, SVector(position))
 end
 
-function addBasisSites!(unitcell::UnitCell{D}, positions::Vector{SVector{D,Float64}}) where {D}
+function addBasisSite!(unitcell::UnitCell{D}, positions::Vector{SVector{D,Float64}}) where {D}
     for position in positions
         addBasisSite!(unitcell, position)
     end
     return nothing
 end
 
-function addBasisSites!(unitcell::UnitCell{D}, positions::Vector{NTuple{D,Float64}}) where {D}
+function addBasisSite!(unitcell::UnitCell{D}, positions::Vector{NTuple{D,Float64}}) where {D}
     for position in positions
         addBasisSite!(unitcell, SVector(position))
     end
