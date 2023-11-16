@@ -80,10 +80,9 @@ function MonteCarlo(lattice::T, parameters::MonteCarloParameters,
     return MonteCarlo(lattice, parameters, MonteCarloStatistics(), observables)
 end
 
-function MonteCarlo(lattice::Lattice{D,N}, parameters::Tuple{Float64,Int64,Int64}, storeAllMeasurements::Bool) where {D,N}
-    pm = MonteCarloParameters(parameters...)
-    obs = Observables(lattice, storeAllMeasurements)
-    return MonteCarlo(lattice, pm, obs)
+function MonteCarlo(lattice::T, parameters::MonteCarloParameters,
+    storeAllMeasurements::Bool=false) where {T<:Lattice}
+    return MonteCarlo(lattice, parameters, MonteCarloStatistics(), Observables(lattice, storeAllMeasurements))
 end
 
 mutable struct MonteCarloAnnealing{}
