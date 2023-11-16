@@ -39,6 +39,13 @@ function addInteraction!(unitcell::UnitCell{D}, b1::Int, b2::Int, M::SMatrix{3,3
     addInteraction!(unitcell, b1 => b2, M, offset)
 end
 
+function addInteraction!(unitcell::UnitCell{D}, b1::Int, b2s::Vector{Int}, M::SMatrix{3,3,Float64,9}, offsets::Vector{NTuple{D,Int}}) where {D}
+    for (b2, offset) in zip(b2s, offsets)
+        addInteraction!(unitcell, b1 => b2, M, offset)
+    end
+    return nothing
+end
+
 """
 Sets the self-interaction for a spin located at basis site 'b' of the given 'unitcell'. 
 The exchange energy is calculated as spin'.M.spin
