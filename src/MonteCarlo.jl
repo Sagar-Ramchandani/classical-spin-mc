@@ -144,6 +144,14 @@ Monte Carlo Functions
 --------------------------------------------------------------------------------
 """
 
+function resetStatistics!(statistics::MonteCarloStatistics)
+    statistics.attemptedLocalUpdates = 0
+    statistics.acceptedLocalUpdates = 0
+    statistics.attemptedReplicaExchanges = 0
+    statistics.acceptedReplicaExchanges = 0
+    return nothing
+end
+
 function createChannels()
     channelsUp = [fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid())) for i in procs()]
     channelsDown = circshift([fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid())) for i in procs()], -1)
@@ -322,7 +330,7 @@ function printStatistics!(mc::MonteCarlo{T}; replica=false) where {T<:Lattice}
         print(str)
 
         #reset statistics
-        mc.statistics = MonteCarloStatistics()
+        resetStatistics!(mc.statistics)
     end
 end
 
