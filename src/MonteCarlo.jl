@@ -28,9 +28,16 @@ end
 
 function Base.:show(io::IO, statistics::MonteCarloStatistics)
     time = Dates.format(unix2datetime(statistics.initializationTime), "dd u yyyy HH:MM:SS")
+    str = "MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $time\n"
+    if !(statistics.attemptedLocalUpdatesTotal == 0)
+        str *= @sprintf("\tUpdate acceptance rate: %.2f%%\n", 100 * statistics.acceptedLocalUpdatesTotal / statistics.attemptedLocalUpdatesTotal)
+    end
+    if !(statistics.attemptedReplicaExchangesTotal == 0)
+        str *= @sprintf("\tReplica acceptance rate: %.2f%%\n", 100 * statistics.acceptedReplicaExchangesTotal / statistics.attemptedReplicaExchangesTotal)
+    end
     println(
         io,
-        "MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $time"
+        str
     )
 end
 
