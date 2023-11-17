@@ -23,7 +23,11 @@ mutable struct MonteCarloStatistics
 end
 
 function Base.:show(io::IO, statistics::MonteCarloStatistics)
-    println(io, "MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $(statistics.initializationTime)")
+    time = Dates.format(unix2datetime(statistics.initializationTime), "dd u yyyy HH:MM:SS")
+    println(
+        io,
+        "MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $time"
+    )
 end
 
 @kwdef mutable struct MonteCarloParameters{U<:AbstractRNG,UP<:Function}
