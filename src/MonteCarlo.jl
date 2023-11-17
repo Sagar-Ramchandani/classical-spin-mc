@@ -383,7 +383,7 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
         if enableOutput
             checkpointPending = time() - lastCheckpointTime >= mc.checkpointInterval
             if checkpointPending
-                writeMonteCarlo(outfile, mc)
+                writeCheckpoint!(outfile, mc)
                 lastCheckpointTime = time()
                 @printf("Checkpoint written on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
             end
@@ -392,7 +392,7 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
 
     #write final checkpoint
     if enableOutput
-        writeMonteCarlo(outfile, mc)
+        writeMonteCarlo!(outfile, mc)
         @printf("Checkpoint written on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
     end
 
@@ -487,7 +487,7 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{Remo
         if enableOutput
             checkpointPending = time() - lastCheckpointTime >= mc.parameters.checkpointInterval
             if checkpointPending
-                writeMonteCarlo(outfile, mc)
+                writeCheckpoint!(outfile, mc)
                 lastCheckpointTime = time()
                 rank == 1 && @printf("Checkpoint written on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
             end
@@ -496,7 +496,7 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{Remo
 
     #write final checkpoint
     if enableOutput
-        writeMonteCarlo(outfile, mc)
+        writeMonteCarlo!(outfile, mc)
         rank == 1 && @printf("Checkpoint written on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
     end
 
