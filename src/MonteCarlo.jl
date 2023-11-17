@@ -11,21 +11,19 @@ Monte Carlo Structs and Constructors
 --------------------------------------------------------------------------------
 """
 
-mutable struct MonteCarloStatistics
-    sweeps::Int
+@kwdef mutable struct MonteCarloStatistics
+    sweeps::Int = 0
 
-    attemptedLocalUpdatesTotal::Int
-    acceptedLocalUpdatesTotal::Int
-    attemptedReplicaExchangesTotal::Int
-    acceptedReplicaExchangesTotal::Int
+    attemptedLocalUpdatesTotal::Int = 0
+    acceptedLocalUpdatesTotal::Int = 0
+    attemptedReplicaExchangesTotal::Int = 0
+    acceptedReplicaExchangesTotal::Int = 0
 
-    attemptedLocalUpdates::Int
-    acceptedLocalUpdates::Int
-    attemptedReplicaExchanges::Int
-    acceptedReplicaExchanges::Int
-    initializationTime::Float64
-
-    MonteCarloStatistics() = new(0, 0, 0, 0, 0, 0, 0, 0, 0, time())
+    attemptedLocalUpdates::Int = 0
+    acceptedLocalUpdates::Int = 0
+    attemptedReplicaExchanges::Int = 0
+    acceptedReplicaExchanges::Int = 0
+    initializationTime::Float64 = time()
 end
 
 function Base.:show(io::IO, statistics::MonteCarloStatistics)
