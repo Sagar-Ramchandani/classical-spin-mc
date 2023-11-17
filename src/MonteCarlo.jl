@@ -13,13 +13,19 @@ Monte Carlo Structs and Constructors
 
 mutable struct MonteCarloStatistics
     sweeps::Int
+
+    attemptedLocalUpdatesTotal::Int
+    acceptedLocalUpdatesTotal::Int
+    attemptedReplicaExchangesTotal::Int
+    acceptedReplicaExchangesTotal::Int
+
     attemptedLocalUpdates::Int
     acceptedLocalUpdates::Int
     attemptedReplicaExchanges::Int
     acceptedReplicaExchanges::Int
     initializationTime::Float64
 
-    MonteCarloStatistics() = new(0, 0, 0, 0, 0, time())
+    MonteCarloStatistics() = new(0, 0, 0, 0, 0, 0, 0, 0, 0, time())
 end
 
 function Base.:show(io::IO, statistics::MonteCarloStatistics)
@@ -144,7 +150,14 @@ Monte Carlo Functions
 --------------------------------------------------------------------------------
 """
 
-function resetStatistics!(statistics::MonteCarloStatistics)
+function updateTotalStatistics!(statistics::MonteCarloStatistics)
+    #update running total of statistics
+    statistics.attemptedLocalUpdatesTotal += statistics.attemptedLocalUpdates
+    statistics.acceptedLocalUpdatesTotal += statistics.acceptedLocalUpdates
+    statistics.attemptedReplicaExchangesTotal += statistics.attemptedReplicaExchanges
+    statistics.acceptedReplicaExchangesTotal += statistics.acceptedReplicaExchanges
+
+    #Reset current statistics
     statistics.attemptedLocalUpdates = 0
     statistics.acceptedLocalUpdates = 0
     statistics.attemptedReplicaExchanges = 0
@@ -329,8 +342,8 @@ function printStatistics!(mc::MonteCarlo{T}; replica=false) where {T<:Lattice}
         str *= @sprintf("\n")
         print(str)
 
-        #reset statistics
-        resetStatistics!(mc.statistics)
+        #update total statistics and reset current statistics
+        updateTotalStatistics!(mc.statistics)
     end
 end
 
