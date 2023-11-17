@@ -33,7 +33,7 @@ mutable struct Observables <: AbstractObservables
 
     correlation::BinnedMatrixObs
 
-    chirality::BinnedObs
+    chirality::Tuple{Vector{Vector{Int64}},BinnedObs}
 
     """
     Possibly change them to FullBinners or LogBinners
@@ -57,7 +57,7 @@ function Observables(lattice::T, storeAll::Bool) where {T<:Lattice}
         storeAll ? FullBinner([zeros(Float64, 3)]) : LogBinner(zeros(Float64, 3)),
         storeAll ? FullBinner([zeros(Float64, 3, length(lattice.unitcell))]) : LogBinner(zeros(Float64, 3, length(lattice.unitcell))),
         LogBinner(zeros(Float64, lattice.length, length(lattice.unitcell))),
-        LogBinner(Float64),
+        (calcTriangles(lattice), LogBinner(Float64)),
         Int64[],
         Float64[],
     )
@@ -98,11 +98,9 @@ function performMeasurements!(obs::O, lattice::T, energy::Float64) where {O<:Abs
 end
 
 #Specialized method for built-in observables type
-"""
-Fix requiring siteList as seperate argument
-"""
-function performMeasurements!(observables::Observables, lattice::T, energy::Float64, siteList::Vector{Vector{Int64}}) where {T<:Lattice}
+function performMeasurements!(observables::Observables, lattice::T, energy::Float64) where {T<:Lattice}
     #measure energy and energy^2
+    siteList = first(observables.chirality)
     push!(observables.energy, energy / length(lattice), energy * energy / (length(lattice) * length(lattice)))
 
     m = getMagnetization(lattice)
@@ -125,5 +123,5 @@ function performMeasurements!(observables::Observables, lattice::T, energy::Floa
     #measure spin correlations
     push!(observables.correlation, getCorrelation(lattice))
     push!(observables.magnetizationVectorPerSite, getMagnetizationPerSite(lattice))
-    push!(observables.chirality, getChirality(lattice, siteList))
+    push!(last(observables.chirality), getChirality(lattice, siteList))
 end

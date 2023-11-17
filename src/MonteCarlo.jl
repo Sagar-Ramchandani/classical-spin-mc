@@ -353,8 +353,6 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
     #init spin configuration
     initSpinConfiguration!(mc)
 
-    siteList = calcTriangles(mc.lattice)
-
     #init Monte Carlo run
     totalSweeps = mc.parameters.thermalizationSweeps + mc.parameters.measurementSweeps
     energy = getEnergy(mc.lattice)
@@ -374,7 +372,7 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
         #perform measurement
         if mc.parameters.sweep >= mc.parameters.thermalizationSweeps
             if mc.parameters.sweep % mc.parameters.measurementRate == 0
-                performMeasurements!(mc.observables, mc.lattice, energy, siteList)
+                performMeasurements!(mc.observables, mc.lattice, energy)
             end
         end
 
@@ -446,9 +444,6 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{Remo
     #init spin configuration
     initSpinConfiguration!(mc)
 
-    #Possibly move the output of calcTriangles into the observables object
-    siteList = calcTriangles(mc.lattice)
-
     #init Monte Carlo run
     totalSweeps = mc.parameters.thermalizationSweeps + mc.parameters.measurementSweeps
     energy = getEnergy(mc.lattice)
@@ -479,7 +474,7 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{Remo
         #perform measurement
         if mc.parameters.sweep >= mc.parameters.thermalizationSweeps
             if mc.parameters.sweep % mc.parameters.measurementRate == 0
-                performMeasurements!(mc.observables, mc.lattice, energy, siteList)
+                performMeasurements!(mc.observables, mc.lattice, energy)
             end
         end
 
