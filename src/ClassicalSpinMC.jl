@@ -9,7 +9,7 @@ export Lattice, size, length, getSpin, setSpin!,
     getInteractionOnsite, getInteractionField
 
 include("Observables.jl")
-export Observables
+export AbstractObservables, Observables, performMeasurements!
 
 include("Spin.jl")
 export marsagliaSphereUpdate, sphericalUpdate, conicalUpdate,

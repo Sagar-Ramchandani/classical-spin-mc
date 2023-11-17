@@ -13,7 +13,9 @@ const BinnedMatrixObs = LogBinner{Matrix{Float64},32,BinningAnalysis.Variance{Ma
 const FullMatrixObs = FullBinner{Matrix{Float64},Vector{Matrix{Float64}}}
 const MatrixObs = Union{BinnedMatrixObs,FullMatrixObs}
 
-mutable struct Observables
+abstract type AbstractObservables end
+
+mutable struct Observables <: AbstractObservables
     """
     Add fraction as a proper field and 
     possibly move labels somewhere else
@@ -86,7 +88,16 @@ function getFraction(vec)
     return up / total
 end
 
+#Method for generic computation of observables
+function performMeasurements!(obs::O, lattice::T) where {O<:AbstractObservables,T<:Lattice}
+    fields = fieldnames(O)
+    for field in fields
+        push!(getfield(obs, field), getfield(Main, Symbol("get" * String(field)))(lattice))
+    end
+    return nothing
+end
 
+#Specialized method for built-in observables type
 function performMeasurements!(observables::Observables, lattice::T, energy::Float64, siteList::Vector{Vector{Int64}}) where {T<:Lattice}
     #measure energy and energy^2
     push!(observables.energy, energy / length(lattice), energy * energy / (length(lattice) * length(lattice)))
