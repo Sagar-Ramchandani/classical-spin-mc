@@ -95,7 +95,7 @@ function setField!(unitcell::UnitCell{D}, b::Int, B::SVector{3,Float64}) where {
     return nothing
 end
 
-function setField!(unitcell::UnitCell{D}, b::Int, B::Vector{SVector{3,Float64}}) where {D}
+function setField!(unitcell::UnitCell{D}, B::Vector{SVector{3,Float64}}) where {D}
     unitcell.interactionsField = B
     return nothing
 end
