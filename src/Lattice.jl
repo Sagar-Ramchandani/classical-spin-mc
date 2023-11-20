@@ -167,6 +167,11 @@ function setSpin!(lattice::Lattice{D,N}, site::Int, newState::SVector{3,Float64}
     return nothing
 end
 
+function setSpin!(lattice::Lattice{D,N}, site::Int, newState::NTuple{3,Float64}) where {D,N}
+    setSpin!(lattice, site, SVector(newState))
+    return nothing
+end
+
 function getSitePosition(lattice::Lattice{D,N}, site::Int)::SVector{D,Float64} where {D,N}
     return lattice.sitePositions[site]
 end
