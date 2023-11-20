@@ -76,7 +76,7 @@ function setInteractionOnsite!(unitcell::UnitCell{D}, b::Int, M::SMatrix{3,3,Flo
     return nothing
 end
 
-function setInteractionOnsite!(unitcell::UnitCell{D}, b::Int, M::Vector{SMatrix{3,3,Float64,9}}) where {D}
+function setInteractionOnsite!(unitcell::UnitCell{D}, M::Vector{SMatrix{3,3,Float64,9}}) where {D}
     unitcell.interactionsOnsite = M
     return nothing
 end
@@ -135,7 +135,11 @@ function addBasisSite!(unitcell::UnitCell{D}, positions::Vector{NTuple{D,Float64
 end
 
 function resetBasis!(unitcell::UnitCell{D}) where {D}
+    #Also reset all quantities based on the basis
     unitcell.basis = Vector{SVector{D,Float64}}(undef, 0)
+    unitcell.interactions = Vector{Tuple{Pair{Int,Int},NTuple{D,Int},SMatrix{3,3,Float64,9}}}(undef, 0)
+    unitcell.interactionsOnsite = Vector{SMatrix{3,3,Float64,9}}(undef, 0)
+    unitcell.interactionsField = Vector{SVector{3,Float64}}(undef, 0)
     return nothing
 end
 

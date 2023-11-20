@@ -1,7 +1,8 @@
 module ClassicalSpinMC
 
 include("Unitcell.jl")
-export UnitCell, addInteraction!, setInteractionOnsite!, setField!, addBasisSite!, addAnisotropy!
+export UnitCell, addInteraction!, setInteractionOnsite!, setField!, addBasisSite!, addAnisotropy!,
+    resetBasis!
 
 include("Lattice.jl")
 export Lattice, size, length, getSpin, setSpin!,
