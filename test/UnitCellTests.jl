@@ -13,6 +13,7 @@
     """
 
     uc = UnitCell((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+    @test dimension(uc) == 3
 
     """
     Test adding a basis site
@@ -73,6 +74,17 @@
     @test uc.interactionsField[1] == 1.0 * @SVector(ones(3))
     @test uc.interactionsField[2] == 2.0 * @SVector(ones(3))
     @test uc.interactionsField[3] == 3.0 * @SVector(ones(3))
+
+    """
+    Test saving and loading the unitcell
+    """
+
+    h5open(tempname(), "w") do f
+        @test writeUnitcell!(f, uc) === nothing
+        ucLoaded = readUnitcell(f)
+        @test typeof(ucLoaded) == typeof(uc)
+        @test uc == readUnitcell(f)
+    end
 
     """
     Test resetting the basis
