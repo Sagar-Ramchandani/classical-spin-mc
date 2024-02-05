@@ -68,18 +68,18 @@ function getAnisotropy(::typeof(identity), lattice::Lattice{D,N})::Float64 where
     return zero(Float64)
 end
 
-function getAnisotropy(::typeof(identity), spin::SVector{3,Float64})::Float64
+function getAnisotropy(::typeof(identity), spin::SVector{3,Float64}, parameters::NTuple{P,Float64})::Float64 where {P}
     return zero(Float64)
 end
 
-function getAnisotropy(func::F, spin::SVector{3,Float64})::Float64 where {F<:Function}
-    return func(spin)
+function getAnisotropy(func::F, spin::SVector{3,Float64}, parameters::NTuple{P,Float64})::Float64 where {F<:Function,P}
+    return func(spin, parameters)
 end
 
 function getAnisotropy(func::F, lattice::Lattice{D,N})::Float64 where {D,N,F<:Function}
     energy = zero(Float64)
     for spin in lattice.spins
-        energy += getAnisotropy(func, spin)
+        energy += getAnisotropy(func, spin, lattice.anisotropyParameteres)
     end
     return energy
 end
@@ -131,7 +131,7 @@ function getEnergyDifference(lattice::Lattice{D,N}, site::Int, newState::SVector
     ΔE += dot(ΔS, getInteractionField(lattice, site))
 
     #ansiotropy
-    ΔE += getAnisotropy(lattice.anisotropyFunction, newState) - getAnisotropy(lattice.anisotropyFunction, oldState)
+    ΔE += getAnisotropy(lattice.anisotropyFunction, newState, lattice.anisotropyParameteres) - getAnisotropy(lattice.anisotropyFunction, oldState, lattice.anisotropyParameteres)
 
     return ΔE
 end
