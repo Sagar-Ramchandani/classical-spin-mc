@@ -1,5 +1,5 @@
 using StaticArrays
-mutable struct Lattice{D,N,F}
+mutable struct Lattice{D,N,F,P}
     size::NTuple{D,Int} #linear dimension (D) of the lattice in number of unit cells
     length::Int #Number of sites in the lattice N_sites
     unitcell::UnitCell{D}
@@ -12,12 +12,12 @@ mutable struct Lattice{D,N,F}
     interactionOnsite::Vector{SMatrix{3,3,Float64,9}} #list of length N_sites, for every site contains the local onsite interaction matrix
     interactionField::Vector{SVector{3,Float64}} #list of length N_sites, for every site contains the local field
     anisotropyFunction::F
+    anisotropyParameteres::NTuple{P,Float64}
 
     #Generic fallback method, possibly remove
-    Lattice(D, N, F) = new{D,N,F}()
+    Lattice(D, N, F, P) = new{D,N,F,P}()
 end
 
-#Add error check for a unitcell with no sites.
 function Lattice(uc::UnitCell{D}, L::NTuple{D,Int}) where {D}
     @assert(!(length(uc.basis) == 0), "The Unitcell has no sites and thus a lattice cannot be created")
     #parse interactions
@@ -58,7 +58,7 @@ function Lattice(uc::UnitCell{D}, L::NTuple{D,Int}) where {D}
     Ninteractions = findmax([length(interactionTargetSites[i]) for i in 1:length(uc.basis)])[1]
 
     #create lattice struct
-    lattice = Lattice(D, Ninteractions, typeof(uc.anisotropyFunction))
+    lattice = Lattice(D, Ninteractions, typeof(uc.anisotropyFunction), length(uc.anisotropyParameters))
     lattice.size = L
     lattice.length = prod(L) * length(uc.basis)
     lattice.unitcell = uc
@@ -111,6 +111,7 @@ function Lattice(uc::UnitCell{D}, L::NTuple{D,Int}) where {D}
         end
         return n
     end
+
     function siteIndexFromParametrization(site)
         return findfirst(isequal(site), sites)
     end
@@ -143,8 +144,15 @@ function Lattice(uc::UnitCell{D}, L::NTuple{D,Int}) where {D}
         lattice.interactionMatrices[i] = NTuple{Ninteractions,SMatrix{3,3,Float64,9}}(interactionMatrices)
     end
     lattice.anisotropyFunction = uc.anisotropyFunction
+    lattice.anisotropyParameteres = Tuple(uc.anisotropyParameters)
     return lattice
 end
+
+"""
+--------------------------------------------------------------------------------
+Extend Base
+--------------------------------------------------------------------------------
+"""
 
 function Base.size(lattice::Lattice{D,N}) where {D,N}
     return lattice.size
@@ -157,6 +165,29 @@ end
 function Base.:show(io::IO, lattice::Lattice{D,N}) where {D,N}
     println(io, "$(D)D Lattice with $(size(lattice)) unitcells and $(N) interactions per site")
 end
+
+import Base: ==
+function ==(l1::Lattice{D,N}, l2::Lattice{D,N}) where {D,N}
+    return (
+        l1.size == l2.size &&
+        l1.length == l2.length &&
+        l1.unitcell == l2.unitcell &&
+        l1.sitePositions == l2.sitePositions &&
+        l1.spins == l2.spins &&
+        l1.interactionSites == l2.interactionSites &&
+        l1.interactionMatrices == l2.interactionMatrices &&
+        l1.interactionOnsite == l2.interactionOnsite &&
+        l1.interactionField == l2.interactionField &&
+        l1.anisotropyFunction == l2.anisotropyFunction &&
+        l1.anisotropyParameteres == l2.anisotropyParameteres
+    )
+end
+
+"""
+--------------------------------------------------------------------------------
+Interface functions for lattice object
+--------------------------------------------------------------------------------
+"""
 
 function getSpin(lattice::Lattice{D,N}, site::Int) where {D,N}
     return lattice.spins[site]
