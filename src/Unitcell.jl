@@ -9,6 +9,7 @@ using StaticArrays
     interactionsOnsite::Vector{SMatrix{3,3,Float64,9}} = Vector{SMatrix{3,3,Float64,9}}(undef, 0)
     interactionsField::Vector{SVector{3,Float64}} = Vector{SVector{3,Float64}}(undef, 0)
     anisotropyFunction::Function = identity
+    anisotropyParameters::Vector{Float64} = [zero(Float64)]
 end
 
 """
@@ -27,8 +28,13 @@ function UnitCell(primitive::Vararg{NTuple{D,Float64},D}) where {D}
     return UnitCell(SVector.(primitive)...)
 end
 
-function addAnisotropy!(unitcell::UnitCell{D}, func::F) where {D,F<:Function}
+function addAnisotropy!(unitcell::UnitCell{D}, func::F, funcParameters::Vector{Float64}) where {D,F<:Function}
     unitcell.anisotropyFunction = func
+    unitcell.anisotropyParameters = funcParameters
+end
+
+function dimension(unitcell::UnitCell{D}) where {D}
+    return first(typeof(unitcell).parameters)
 end
 
 """
@@ -155,4 +161,17 @@ end
 
 function Base.:show(io::IO, uc::UnitCell{D}) where {D}
     println(io, "$(2)D Unitcell with $(length(uc.basis)) sites and $(length(uc.interactions)) interactions")
+end
+
+import Base: ==
+function ==(uc1::UnitCell{D}, uc2::UnitCell{D}) where {D}
+    return (
+        uc1.primitive == uc2.primitive &&
+        uc1.basis == uc2.basis &&
+        uc1.interactions == uc2.interactions &&
+        uc1.interactionsOnsite == uc2.interactionsOnsite &&
+        uc1.interactionsField == uc2.interactionsField &&
+        uc1.anisotropyFunction == uc2.anisotropyFunction &&
+        uc1.anisotropyParameters == uc2.anisotropyParameters
+    )
 end
