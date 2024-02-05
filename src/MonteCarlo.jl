@@ -7,7 +7,7 @@ const updateParameterDict = Dict(conicalUpdate => 1.0π)
 
 """
 --------------------------------------------------------------------------------
-Monte Carlo Structs and Constructors
+Monte Carlo Structs
 --------------------------------------------------------------------------------
 """
 
@@ -23,22 +23,8 @@ Monte Carlo Structs and Constructors
     acceptedLocalUpdates::Int = 0
     attemptedReplicaExchanges::Int = 0
     acceptedReplicaExchanges::Int = 0
-    initializationTime::Float64 = time()
-end
 
-function Base.:show(io::IO, statistics::MonteCarloStatistics)
-    time = Dates.format(unix2datetime(statistics.initializationTime), "dd u yyyy HH:MM:SS")
-    str = "MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $time\n"
-    if !(statistics.attemptedLocalUpdatesTotal == 0)
-        str *= @sprintf("\tUpdate acceptance rate: %.2f%%\n", 100 * statistics.acceptedLocalUpdatesTotal / statistics.attemptedLocalUpdatesTotal)
-    end
-    if !(statistics.attemptedReplicaExchangesTotal == 0)
-        str *= @sprintf("\tReplica acceptance rate: %.2f%%\n", 100 * statistics.acceptedReplicaExchangesTotal / statistics.attemptedReplicaExchangesTotal)
-    end
-    println(
-        io,
-        str
-    )
+    initializationTime::Float64 = time()
 end
 
 @kwdef mutable struct MonteCarloParameters{U<:AbstractRNG,UP<:Function}
@@ -60,18 +46,6 @@ end
     updateParameter::Float64 = get(updateParameterDict, updateFunction, 0.0)
 end
 
-function Base.:show(io::IO, parameters::MonteCarloParameters)
-    println(io, "MonteCarloParameters with β=$(parameters.beta) and update function: $(parameters.updateFunction)")
-end
-
-function MonteCarloParameters(
-    beta::Float64,
-    thermalizationSweeps::Int,
-    measurementSweeps::Int)
-
-    return MonteCarloParameters(beta=beta, thermalizationSweeps=thermalizationSweeps, measurementSweeps=measurementSweeps)
-end
-
 mutable struct MonteCarlo{T<:Lattice,P<:MonteCarloParameters}
     lattice::T
     parameters::P
@@ -86,22 +60,39 @@ mutable struct MonteCarlo{T<:Lattice,P<:MonteCarloParameters}
     end
 end
 
-function Base.:show(io::IO, mc::MonteCarlo{T}) where {T<:Lattice}
-    println(io, "MonteCarlo with β=$(mc.parameters.beta) and update function: $(mc.parameters.updateFunction)")
+mutable struct MonteCarloAnnealing{}
+    MonteCarloObjects::Vector{MonteCarlo}
 end
+
+mutable struct MonteCarloExchange{T}
+    MonteCarloObjects::Vector{MonteCarlo}
+    betas::Vector{Float64}
+    channelsUp::Vector{RemoteChannel{Channel{T}}}
+    channelsDown::Vector{RemoteChannel{Channel{T}}}
+end
+
+"""
+--------------------------------------------------------------------------------
+Monte Carlo Constructors
+--------------------------------------------------------------------------------
+"""
+
+function MonteCarloParameters(
+    beta::Float64,
+    thermalizationSweeps::Int,
+    measurementSweeps::Int)
+
+    return MonteCarloParameters(beta=beta, thermalizationSweeps=thermalizationSweeps, measurementSweeps=measurementSweeps)
+end
+
 
 function MonteCarlo(lattice::T, parameters::MonteCarloParameters,
     observables::Observables) where {T<:Lattice}
     return MonteCarlo(lattice, parameters, MonteCarloStatistics(), observables)
 end
 
-function MonteCarlo(lattice::T, parameters::MonteCarloParameters,
-    storeAllMeasurements::Bool=false) where {T<:Lattice}
-    return MonteCarlo(lattice, parameters, MonteCarloStatistics(), Observables(lattice, storeAllMeasurements))
-end
-
-mutable struct MonteCarloAnnealing{}
-    MonteCarloObjects::Vector{MonteCarlo}
+function MonteCarlo(lattice::T, parameters::MonteCarloParameters) where {T<:Lattice}
+    return MonteCarlo(lattice, parameters, MonteCarloStatistics(), Observables(lattice))
 end
 
 function MonteCarloAnnealing(mc::MonteCarlo, betas::Vector{Float64})
@@ -125,13 +116,6 @@ function MonteCarloAnnealing(mc::MonteCarlo, betas::Vector{Float64})
     return MonteCarloAnnealing(simulations)
 end
 
-mutable struct MonteCarloExchange{T}
-    MonteCarloObjects::Vector{MonteCarlo}
-    betas::Vector{Float64}
-    channelsUp::Vector{RemoteChannel{Channel{T}}}
-    channelsDown::Vector{RemoteChannel{Channel{T}}}
-end
-
 function MonteCarloExchange(mc::MonteCarlo, betas::Vector{Float64})
     simulations = Vector{MonteCarlo}(undef, length(betas))
 
@@ -151,30 +135,61 @@ end
 
 """
 --------------------------------------------------------------------------------
-Monte Carlo Functions
+Extend Base for Monte Carlo structs
 --------------------------------------------------------------------------------
 """
 
-function updateTotalStatistics!(statistics::MonteCarloStatistics)
-    #update running total of statistics
-    statistics.attemptedLocalUpdatesTotal += statistics.attemptedLocalUpdates
-    statistics.acceptedLocalUpdatesTotal += statistics.acceptedLocalUpdates
-    statistics.attemptedReplicaExchangesTotal += statistics.attemptedReplicaExchanges
-    statistics.acceptedReplicaExchangesTotal += statistics.acceptedReplicaExchanges
-
-    #Reset current statistics
-    statistics.attemptedLocalUpdates = 0
-    statistics.acceptedLocalUpdates = 0
-    statistics.attemptedReplicaExchanges = 0
-    statistics.acceptedReplicaExchanges = 0
-    return nothing
+function Base.:show(io::IO, mc::MonteCarlo{T}) where {T<:Lattice}
+    println(io, "MonteCarlo with β=$(mc.parameters.beta) and update function: $(mc.parameters.updateFunction)")
 end
 
-function createChannels()
-    channelsUp = [fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid())) for i in procs()]
-    channelsDown = circshift([fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid())) for i in procs()], -1)
-    return (channelsUp, channelsDown)
+function Base.:show(io::IO, parameters::MonteCarloParameters)
+    println(io, "MonteCarloParameters with β=$(parameters.beta) and update function: $(parameters.updateFunction)")
 end
+
+function Base.:show(io::IO, statistics::MonteCarloStatistics)
+    time = Dates.format(unix2datetime(statistics.initializationTime), "dd u yyyy HH:MM:SS")
+    str = "MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $time\n"
+    if !(statistics.attemptedLocalUpdatesTotal == 0)
+        str *= @sprintf("\tUpdate acceptance rate: %.2f%%\n", 100 * statistics.acceptedLocalUpdatesTotal / statistics.attemptedLocalUpdatesTotal)
+    end
+    if !(statistics.attemptedReplicaExchangesTotal == 0)
+        str *= @sprintf("\tReplica acceptance rate: %.2f%%\n", 100 * statistics.acceptedReplicaExchangesTotal / statistics.attemptedReplicaExchangesTotal)
+    end
+    println(
+        io,
+        str
+    )
+end
+
+import Base: ==
+
+function ==(a::T, b::T) where {T<:Union{MonteCarloStatistics,MonteCarloParameters}}
+    fields = fieldnames(T)
+    status = true
+    for field in fields
+        status = status && (getfield(a, field) == getfield(b, field))
+    end
+    return status
+end
+
+function ==(a::T, b::T) where {T<:MonteCarlo}
+    fields = fieldnames(T)
+    status = true
+    for field in fields
+        status = status && (getfield(a, field) == getfield(b, field))
+        if status == false
+            println(field)
+        end
+    end
+    return status
+end
+
+"""
+--------------------------------------------------------------------------------
+initSpinConfiguration functions
+--------------------------------------------------------------------------------
+"""
 
 function initSpinConfiguration!(lattice::Lattice{D,N}, f::typeof(conicalUpdate), rng=Random.GLOBAL_RNG) where {D,N}
     @warn "Conical updates only work if the lattice is already initialized"
@@ -194,6 +209,12 @@ function initSpinConfiguration!(mc::MonteCarlo{T}) where {T<:Lattice}
         initSpinConfiguration!(mc.lattice, mc.parameters.updateFunction, mc.parameters.rng)
     end
 end
+
+"""
+--------------------------------------------------------------------------------
+localSweep functions
+--------------------------------------------------------------------------------
+"""
 
 function localUpdate(mc::MonteCarlo{T,P}, proposalSite::Int64, newSpinState::SVector{3,Float64}) where {T<:Lattice,P<:MonteCarloParameters}
     energyDifference = getEnergyDifference(mc.lattice, proposalSite, newSpinState)
@@ -241,6 +262,12 @@ function localSweep(mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
     return energy
 end
 
+"""
+--------------------------------------------------------------------------------
+microcanonicalSweep functions
+--------------------------------------------------------------------------------
+"""
+
 function microcanonicalSweep!(lattice::Lattice{D,N}, rounds::Int, rng=Random.GLOBAL_RNG) where {D,N}
     basisLength = length(lattice.unitcell)
     for _ in 1:rounds
@@ -266,6 +293,12 @@ end
 function microcanonicalSweep!(mc::MonteCarlo{T}) where {T<:Lattice}
     return microcanonicalSweep!(mc.lattice, mc.parameters.microcanonicalRoundsPerSweep, mc.parameters.rng)
 end
+
+"""
+--------------------------------------------------------------------------------
+replicaExchange functions
+--------------------------------------------------------------------------------
+"""
 
 function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, betas::Vector{Float64}, channelsUp, channelsDown, label) where {T<:Lattice}
     #determine replica partner rank
@@ -317,6 +350,33 @@ function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, betas::Vector{Floa
         end
     end
     return (energy, label)
+end
+
+"""
+--------------------------------------------------------------------------------
+Monte Carlo Functions
+--------------------------------------------------------------------------------
+"""
+
+function updateTotalStatistics!(statistics::MonteCarloStatistics)
+    #update running total of statistics
+    statistics.attemptedLocalUpdatesTotal += statistics.attemptedLocalUpdates
+    statistics.acceptedLocalUpdatesTotal += statistics.acceptedLocalUpdates
+    statistics.attemptedReplicaExchangesTotal += statistics.attemptedReplicaExchanges
+    statistics.acceptedReplicaExchangesTotal += statistics.acceptedReplicaExchanges
+
+    #Reset current statistics
+    statistics.attemptedLocalUpdates = 0
+    statistics.acceptedLocalUpdates = 0
+    statistics.attemptedReplicaExchanges = 0
+    statistics.acceptedReplicaExchanges = 0
+    return nothing
+end
+
+function createChannels()
+    channelsUp = [fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid())) for i in procs()]
+    channelsDown = circshift([fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid())) for i in procs()], -1)
+    return (channelsUp, channelsDown)
 end
 
 function printStatistics!(mc::MonteCarlo{T}; replica=false) where {T<:Lattice}
@@ -469,7 +529,6 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{Remo
     labels[1] = currentLabel
 
     println("Running replica exchanges across $(nSimulations) simulations")
-
 
     #init spin configuration
     initSpinConfiguration!(mc)
