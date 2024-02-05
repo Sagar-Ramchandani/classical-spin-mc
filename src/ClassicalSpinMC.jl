@@ -1,7 +1,7 @@
 module ClassicalSpinMC
 
 include("Unitcell.jl")
-export UnitCell, addInteraction!, setInteractionOnsite!, setField!, addBasisSite!, addAnisotropy!,
+export UnitCell, dimension, addInteraction!, setInteractionOnsite!, setField!, addBasisSite!, addAnisotropy!,
     resetBasis!
 
 include("Lattice.jl")
@@ -27,6 +27,7 @@ include("IO.jl")
 export writeUnitcell!, readUnitcell,
     writeLattice!, readLattice,
     writeMonteCarloParameters!, readMonteCarloParameters,
+    writeMonteCarloStatistics!, readMonteCarloStatistics,
     writeObservables!, readObservables,
     writeMonteCarlo!, readMonteCarlo,
     save!, load #Only export for debugging
