@@ -1,7 +1,10 @@
 using HDF5
 using Serialization
 
-#Define alias for HDF5 File or Group 
+"""
+    const H5 = Union{HDF5.File,HDF5.Group}
+Used to define an alias for a HDF5 File or Group.
+"""
 const H5 = Union{HDF5.File,HDF5.Group}
 
 """
@@ -10,6 +13,14 @@ Saving and loading checkpoints using serialization
 --------------------------------------------------------------------------------
 """
 
+"""
+    function writeCheckpoint!(filename::String, mc::MonteCarlo{Lattice{D,N}}) where {D,N}
+Interface function to write a MonteCarlo checkpoint.
+
+!!! warning "Checkpoints"
+    Checkpoints use Serialization and thus are not recommended for long term storage 
+    as they may not be supported on a different Julia version.
+"""
 function writeCheckpoint!(filename::String, mc::MonteCarlo{Lattice{D,N}}) where {D,N}
     h5open(filename, "w") do f
         data = IOBuffer()
@@ -18,6 +29,14 @@ function writeCheckpoint!(filename::String, mc::MonteCarlo{Lattice{D,N}}) where 
     end
 end
 
+"""
+    function readCheckpoint(filename::String)
+Interface function to read a MonteCarlo checkpoint.
+
+!!! warning "Checkpoints"
+    Checkpoints use Serialization and thus are not recommended for long term storage 
+    as they may not be supported on a different Julia version.
+"""
 function readCheckpoint(filename::String)
     h5open(filename, "r") do f
         data = IOBuffer(read(f["checkpoint"]))
@@ -31,6 +50,10 @@ Saving and loading unitcells
 --------------------------------------------------------------------------------
 """
 
+"""
+    function writeUnitcell!(fn::H5, uc::UnitCell{D}) where {D}
+Writes the unitcell in a H5 object.
+"""
 function writeUnitcell!(fn::H5, uc::UnitCell{D}) where {D}
     u = create_group(fn, "unitcell")
     #Writing primitive vectors converted to Matrix{Float64}
@@ -57,6 +80,10 @@ function writeUnitcell!(fn::H5, uc::UnitCell{D}) where {D}
     return nothing
 end
 
+"""
+    function readUnitcell(fn::H5)
+Reads the unitcell from a H5 object.
+"""
 function readUnitcell(fn::H5)
     u = fn["unitcell"]
     #Read primitive vectors and create unitcell
@@ -88,6 +115,10 @@ Saving and loading lattices
 --------------------------------------------------------------------------------
 """
 
+"""
+    function writeLattice!(fn::H5, lattice::Lattice{D,N}) where {D,N}
+Writes the Lattice in a H5 object.
+"""
 function writeLattice!(fn::H5, lattice::Lattice{D,N}) where {D,N}
     """
     Only store information that cannot be reconstructed 
@@ -100,6 +131,10 @@ function writeLattice!(fn::H5, lattice::Lattice{D,N}) where {D,N}
     return nothing
 end
 
+"""
+    function readLattice(fn::H5)
+Reads the Lattice from a H5 object.
+"""
 function readLattice(fn::H5)
     """
     Reconstruct information using the lattice constructor
@@ -117,6 +152,10 @@ Saving and loading MonteCarloParameters
 --------------------------------------------------------------------------------
 """
 
+"""
+    function writeMonteCarloParameters!(fn::H5, mcp::MonteCarloParameters{U}) where {U}
+Writes the MonteCarloParameters in a H5 object.
+"""
 function writeMonteCarloParameters!(fn::H5, mcp::MonteCarloParameters{U}) where {U}
     p = create_group(fn, "parameters")
     #Simulation parameters
@@ -148,6 +187,10 @@ function writeMonteCarloParameters!(fn::H5, mcp::MonteCarloParameters{U}) where 
     return nothing
 end
 
+"""
+    function readMonteCarloParameters(fn::H5)
+Reads the MonteCarloParameters from a H5 object.
+"""
 function readMonteCarloParameters(fn::H5)
     p = fn["parameters"]
     rng = p["rng"]
@@ -186,6 +229,10 @@ Saving and loading MonteCarloStatistics
 --------------------------------------------------------------------------------
 """
 
+"""
+    function writeMonteCarloStatistics!(fn::H5, mcs::MonteCarloStatistics)
+Writes the MonteCarloStatistics in a H5 object.
+"""
 function writeMonteCarloStatistics!(fn::H5, mcs::MonteCarloStatistics)
     s = create_group(fn, "statistics")
     fields = fieldnames(typeof(mcs))
@@ -195,6 +242,10 @@ function writeMonteCarloStatistics!(fn::H5, mcs::MonteCarloStatistics)
     return nothing
 end
 
+"""
+    function readMonteCarloStatistics(fn::H5)
+Reads the MonteCarloStatistics from a H5 object.
+"""
 function readMonteCarloStatistics(fn::H5)
     s = fn["statistics"]
     fields = fieldnames(MonteCarloStatistics)
@@ -370,12 +421,17 @@ end
 Functions below are experimental
 """
 
+#NOTE: Change these to support AbstractObservables instead.
 """
 --------------------------------------------------------------------------------
 Saving and loading Observables
 --------------------------------------------------------------------------------
 """
 
+"""
+    function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables)
+Writes the built-in Observables in a H5 object.
+"""
 function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables)
     o = create_group(fn, "observables")
 
@@ -389,6 +445,10 @@ function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables)
     return nothing
 end
 
+"""
+    function readObservables(fn::Union{HDF5.File,HDF5.Group})
+Reads the built-in Observables from a H5 object.
+"""
 function readObservables(fn::Union{HDF5.File,HDF5.Group})
     o = fn["observables"]
     return Observables([load(o, String(field)) for field in fieldnames(Observables)]...)
@@ -400,6 +460,10 @@ Saving and loading MonteCarlo
 --------------------------------------------------------------------------------
 """
 
+"""
+    function writeMonteCarlo!(fn::H5, mc::MonteCarlo)
+Writes the MonteCarlo object in a H5 object.
+"""
 function writeMonteCarlo!(fn::H5, mc::MonteCarlo)
     g = create_group(fn, "mc")
     writeLattice!(g, mc.lattice)
@@ -408,6 +472,10 @@ function writeMonteCarlo!(fn::H5, mc::MonteCarlo)
     return nothing
 end
 
+"""
+    function writeMonteCarlo!(filename::String, mc::MonteCarlo)
+Writes the MonteCarlo object into a HDF5 file.
+"""
 function writeMonteCarlo!(filename::String, mc::MonteCarlo)
     h5open(filename, "w") do f
         writeMonteCarlo!(f, mc)
@@ -415,6 +483,10 @@ function writeMonteCarlo!(filename::String, mc::MonteCarlo)
     return nothing
 end
 
+"""
+    function readMonteCarlo(fn::H5)
+Reads the MonteCarlo object from a H5 object.
+"""
 function readMonteCarlo(fn::H5)
     g = fn["mc"]
     lattice = readLattice(g)
@@ -423,6 +495,10 @@ function readMonteCarlo(fn::H5)
     return MonteCarlo(lattice, parameters, observables)
 end
 
+"""
+    function readMonteCarlo(filename::String)
+Reads the MonteCarlo object from a HDF5 file.
+"""
 function readMonteCarlo(filename::String)
     h5open(filename, "r") do f
         return readMonteCarlo(f)

@@ -1,4 +1,11 @@
 using StaticArrays
+
+"""
+    struct Lattice
+
+Contains information about the current spin configuration and 
+all energy terms such as exchange interactions.
+"""
 mutable struct Lattice{D,N,F,P}
     size::NTuple{D,Int} #linear dimension (D) of the lattice in number of unit cells
     length::Int #Number of sites in the lattice N_sites
@@ -18,6 +25,11 @@ mutable struct Lattice{D,N,F,P}
     Lattice(D, N, F, P) = new{D,N,F,P}()
 end
 
+"""
+    function Lattice(uc::UnitCell{D}, L::NTuple{D,Int}) where {D}
+
+Generates a Lattice from a UnitCell with periodic boundary conditions.
+"""
 function Lattice(uc::UnitCell{D}, L::NTuple{D,Int}) where {D}
     @assert(!(length(uc.basis) == 0), "The Unitcell has no sites and thus a lattice cannot be created")
     #parse interactions
@@ -189,36 +201,69 @@ Interface functions for lattice object
 --------------------------------------------------------------------------------
 """
 
+"""
+    function getSpin(lattice::Lattice{D,N}, site::Int) where {D,N}
+Interface function to get the spin at a particular site.
+"""
 function getSpin(lattice::Lattice{D,N}, site::Int) where {D,N}
     return lattice.spins[site]
 end
 
+"""
+    function setSpin!(lattice::Lattice{D,N}, site::Int, newState::SVector{3,Float64}) where {D,N}
+Interface function to set the spin at a particular site.
+"""
 function setSpin!(lattice::Lattice{D,N}, site::Int, newState::SVector{3,Float64}) where {D,N}
     lattice.spins[site] = newState
     return nothing
 end
 
+"""
+    function setSpin!(lattice::Lattice{D,N}, site::Int, newState::NTuple{3,Float64}) where {D,N}
+Convenience function that converts a NTuple into SVector internally.
+"""
 function setSpin!(lattice::Lattice{D,N}, site::Int, newState::NTuple{3,Float64}) where {D,N}
     setSpin!(lattice, site, SVector(newState))
     return nothing
 end
 
+"""
+    function getSitePosition(lattice::Lattice{D,N}, site::Int)::SVector{D,Float64} where {D,N}
+Interface function to get the position of a particular site.
+"""
 function getSitePosition(lattice::Lattice{D,N}, site::Int)::SVector{D,Float64} where {D,N}
     return lattice.sitePositions[site]
 end
 
+"""
+    function getInteractionSites(lattice::Lattice{D,N}, site::Int)::NTuple{N,Int} where {D,N}
+Interface function to get the sites that interact with a particular site 
+via exchange terms.
+"""
 function getInteractionSites(lattice::Lattice{D,N}, site::Int)::NTuple{N,Int} where {D,N}
     return lattice.interactionSites[site]
 end
 
+"""
+    function getInteractionMatrices(lattice::Lattice{D,N}, site::Int)::NTuple{N,SMatrix{3,3,Float64,9}} where {D,N}
+Interface function to get the exchange interactions on a particular site.
+"""
 function getInteractionMatrices(lattice::Lattice{D,N}, site::Int)::NTuple{N,SMatrix{3,3,Float64,9}} where {D,N}
     return lattice.interactionMatrices[site]
 end
 
+"""
+    function getInteractionOnsite(lattice::Lattice{D,N}, site::Int)::SMatrix{3,3,Float64,9} where {D,N}
+Interface function to get the on-site interactions on a particular site.
+"""
 function getInteractionOnsite(lattice::Lattice{D,N}, site::Int)::SMatrix{3,3,Float64,9} where {D,N}
     return lattice.interactionOnsite[site]
 end
 
+"""
+    function getInteractionField(lattice::Lattice{D,N}, site::Int)::SVector{3,Float64} where {D,N}
+Interface function to get the magnetic field on a particular site.
+"""
 function getInteractionField(lattice::Lattice{D,N}, site::Int)::SVector{3,Float64} where {D,N}
     return lattice.interactionField[site]
 end

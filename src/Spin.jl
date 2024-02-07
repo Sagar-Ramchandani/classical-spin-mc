@@ -8,6 +8,10 @@ Spin update functions
 --------------------------------------------------------------------------------
 """
 
+"""
+    function marsagliaSphereUpdate(rng=Random.GLOBAL_RNG)
+Generates a random point on a unit sphere using the marsaglia method.
+"""
 function marsagliaSphereUpdate(rng=Random.GLOBAL_RNG)
     x1 = 0.0
     x2 = 0.0
@@ -26,6 +30,10 @@ function marsagliaSphereUpdate(rng=Random.GLOBAL_RNG)
     return SVector(2 * x1 * sqrt(1 - n), 2 * x2 * sqrt(1 - n), 1 - 2 * n)
 end
 
+"""
+    function sphericalUpdate(rng=Random.GLOBAL_RNG)
+Generates a random point on a unit sphere using cylindrical co-ordinates.
+"""
 function sphericalUpdate(rng=Random.GLOBAL_RNG)
     phi = 2.0 * pi * rand(rng)
     z = 2.0 * rand(rng) - 1.0
@@ -40,6 +48,12 @@ function conicalNorthPole(t::Float64, rng=Random.GLOBAL_RNG)
     return SVector(sqrt(1.0 - z^2) * cos(phi), sqrt(1.0 - z^2) * sin(phi), z)
 end
 
+"""
+    function conicalUpdate(v::SVector{3,Float64}, t::Float64, rng=Random.GLOBAL_RNG)
+Generates a random point on a unit sphere restricted in a cone defined as 
+being centered around the vector `v` and an angle `t`.
+For `t=pi` this is equivalent to any other sphere point picking method.
+"""
 function conicalUpdate(v::SVector{3,Float64}, t::Float64, rng=Random.GLOBAL_RNG)
     zAxis = SVector(0.0, 0.0, 1.0)
     c = dot(zAxis, v)
@@ -60,22 +74,42 @@ Energy functions
 --------------------------------------------------------------------------------
 """
 
+"""
+    function exchangeEnergy(s1::SVector{3,Float64}, M::SMatrix{3,3,Float64,9}, s2::SVector{3,Float64})
+Calculates the energy contribution due to exchange terms.
+"""
 function exchangeEnergy(s1::SVector{3,Float64}, M::SMatrix{3,3,Float64,9}, s2::SVector{3,Float64})
     return (s1' * M) * s2
 end
 
+"""
+    function getAnisotropy(::typeof(identity), lattice::Lattice{D,N})::Float64 where {D,N}
+Default method for returning zero in case of no-anisotropy for the full lattice.
+"""
 function getAnisotropy(::typeof(identity), lattice::Lattice{D,N})::Float64 where {D,N}
     return zero(Float64)
 end
 
+"""
+    function getAnisotropy(::typeof(identity), spin::SVector{3,Float64}, parameters::NTuple{P,Float64})::Float64 where {P}
+Default method for returning zero in case of no-anisotropy for a particular spin.
+"""
 function getAnisotropy(::typeof(identity), spin::SVector{3,Float64}, parameters::NTuple{P,Float64})::Float64 where {P}
     return zero(Float64)
 end
 
+"""
+    function getAnisotropy(func::F, spin::SVector{3,Float64}, parameters::NTuple{P,Float64})::Float64 where {F<:Function,P}
+Calculates the anisotropy energy term for a particular spin.
+"""
 function getAnisotropy(func::F, spin::SVector{3,Float64}, parameters::NTuple{P,Float64})::Float64 where {F<:Function,P}
     return func(spin, parameters)
 end
 
+"""
+    function getAnisotropy(func::F, lattice::Lattice{D,N})::Float64 where {D,N,F<:Function}
+Calculates the anisotropy energy term for the full lattice.
+"""
 function getAnisotropy(func::F, lattice::Lattice{D,N})::Float64 where {D,N,F<:Function}
     energy = zero(Float64)
     for spin in lattice.spins
@@ -84,6 +118,11 @@ function getAnisotropy(func::F, lattice::Lattice{D,N})::Float64 where {D,N,F<:Fu
     return energy
 end
 
+"""
+    function getEnergy(lattice::Lattice{D,N})::Float64 where {D,N}
+Calculates the energy of the current spin configuration of the lattice 
+based on all terms defined such as exchange, onsite, field and ansiotropy terms.
+"""
 function getEnergy(lattice::Lattice{D,N})::Float64 where {D,N}
     energy = zero(Float64)
     for site in 1:length(lattice)
@@ -111,6 +150,11 @@ function getEnergy(lattice::Lattice{D,N})::Float64 where {D,N}
     return energy
 end
 
+"""
+    function getEnergyDifference(lattice::Lattice{D,N}, site::Int, newState::SVector{3,Float64})::Float64 where {D,N}
+Performant method for calculating the energy difference when updating a `site` into a `newState`
+due to all terms such as exchange, onsite, field and ansiotropy terms.
+"""
 function getEnergyDifference(lattice::Lattice{D,N}, site::Int, newState::SVector{3,Float64})::Float64 where {D,N}
     ΔE = 0.0
     oldState = getSpin(lattice, site)
@@ -142,10 +186,18 @@ Observables functions
 --------------------------------------------------------------------------------
 """
 
+"""
+    function getMagnetization(lattice::Lattice{D,N}) where {D,N}
+Measures the Magnetization of the lattice spin configuration.
+"""
 function getMagnetization(lattice::Lattice{D,N}) where {D,N}
     return mean(lattice.spins)
 end
 
+"""
+    function getMagnetizationPerSite(lattice::Lattice{D,N}) where {D,N}
+Measures the Magnetization for each type of basis site in the unitcell seperately.
+"""
 function getMagnetizationPerSite(lattice::Lattice{D,N}) where {D,N}
     nTypes = length(lattice.unitcell)
     mSites = zeros(3, nTypes)
@@ -161,6 +213,11 @@ function getMagnetizationPerSite(lattice::Lattice{D,N}) where {D,N}
     return mSites
 end
 
+"""
+    function calcTriangles(lattice::Lattice{D,N}) where {D,N}
+Returns a list of all unique triangles found in the lattice
+consisting of the sites comprising the triangle in ascending order.
+"""
 function calcTriangles(lattice::Lattice{D,N}) where {D,N}
     siteConnections = lattice.interactionSites
     nTypes = length(lattice.unitcell.basis)
@@ -184,6 +241,11 @@ function calcTriangles(lattice::Lattice{D,N}) where {D,N}
     return result
 end
 
+"""
+    function getChirality(lattice::Lattice{D,N}, siteList::Vector{Vector{Int64}}) where {D,N}
+Given a siteList of triangles in the lattice, computes the chirality of the lattice,
+where the chirality is defined as the vector triple product of spins on a triangle.
+"""
 function getChirality(lattice::Lattice{D,N}, siteList::Vector{Vector{Int64}}) where {D,N}
     chi = 0
     for ii in siteList
@@ -193,6 +255,10 @@ function getChirality(lattice::Lattice{D,N}, siteList::Vector{Vector{Int64}}) wh
     return chi
 end
 
+"""
+    function getCorrelation(lattice::Lattice{D,N}) where {D,N}
+Measures the two-point correlation for each pair of sites in the lattice.
+"""
 function getCorrelation(lattice::Lattice{D,N}) where {D,N}
     corr = zeros(length(lattice), length(lattice.unitcell.basis))
     for i in 1:length(lattice.unitcell.basis)
@@ -210,6 +276,16 @@ Overrelaxation functions
 --------------------------------------------------------------------------------
 """
 
+"""
+    function microcanonicalRotation(lattice::Lattice{D,N}, site::Int) where {D,N}
+Performs an Overrelaxation step on the lattice in a deterministic way by 
+using a π rotation.
+
+!!! note "Assumptions on interactions and ansiotropy"
+    This assumes that there are no anisotropy contributions 
+    and no self interactions for the lattice object. 
+    For performance reasons, these checks are performed seperately.
+"""
 function microcanonicalRotation(lattice::Lattice{D,N}, site::Int) where {D,N}
     #compute rotation axis
     axis = SVector(0.0, 0.0, 0.0)
@@ -223,6 +299,16 @@ function microcanonicalRotation(lattice::Lattice{D,N}, site::Int) where {D,N}
     return piRotation(getSpin(lattice, site), axis)
 end
 
+"""
+    function microcanonicalRotationRandom(lattice::Lattice{D,N}, site::Int, rng=Random.GLOBAL_RNG) where {D,N}
+Performs an Overrelaxation step on the lattice in a non-deterministic way by 
+using a random rotation.
+
+!!! note "Assumptions on interactions and anisotropy"
+    This assumes that there are no anisotropy contributions 
+    and no self interactions for the lattice object. 
+    For performance reasons, these checks are performed seperately.
+"""
 function microcanonicalRotationRandom(lattice::Lattice{D,N}, site::Int, rng=Random.GLOBAL_RNG) where {D,N}
     #compute rotation axis
     axis = zero(eltype(lattice.spins))
@@ -232,12 +318,19 @@ function microcanonicalRotationRandom(lattice::Lattice{D,N}, site::Int, rng=Rand
     axis = axis .+ getInteractionField(lattice, site)
     axis = normalize(axis)
 
-    #pi-rotation of current spin around axis
+    #random-rotation of current spin around axis
     return rotateAboutAxis(getSpin(lattice, site), axis, 2π * rand(rng))
 end
 
+"""
+    function rotateAboutAxis(spin::SVector{3,Float64}, axis::SVector{3,Float64}, angle::Float64)
+Rotates a vector about an axis by a particular angle. 
+
+!!! note "Assumptions on normalization"
+    This assumes that the vector and axis are normalized 
+    for performance reasons.
+"""
 function rotateAboutAxis(spin::SVector{3,Float64}, axis::SVector{3,Float64}, angle::Float64)
-    #Assumption: axis and spin are normalized
     spinParallel = dot(spin, axis) .* axis
     spinPerp = spin .- spinParallel
     w = cross(axis, spinPerp)
@@ -247,6 +340,14 @@ function rotateAboutAxis(spin::SVector{3,Float64}, axis::SVector{3,Float64}, ang
     return (spinPerpRotated .+ spinParallel)
 end
 
+"""
+    function piRotation(spin::SVector{3,Float64}, axis::SVector{3,Float64})
+Special case of `rotateAboutAxis` for a rotation by an angle π.
+
+!!! note "Assumptions on normalization"
+    This assumes that the vector and axis are normalized 
+    for performance reasons.
+"""
 function piRotation(spin::SVector{3,Float64}, axis::SVector{3,Float64})
     return SVector(
         2 * (axis[1] * axis[2] * spin[2] + axis[1] * axis[3] * spin[3] + axis[1] * axis[1] * spin[1]) - spin[1],
