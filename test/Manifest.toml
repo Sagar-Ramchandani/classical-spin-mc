@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.0"
+julia_version = "1.10.2"
 manifest_format = "2.0"
-project_hash = "cb27e46daa41c45af36d0e596578d53b0a48cc1f"
+project_hash = "5fb0d28c611ce559e1fc9a27aeefe6db50f312fe"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -30,7 +30,7 @@ version = "4.11.0"
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.0.5+1"
+version = "1.1.0+0"
 
 [[deps.Dates]]
 deps = ["Printf"]
@@ -200,6 +200,12 @@ uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
 [[deps.Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
+
+[[deps.Suppressor]]
+deps = ["Logging"]
+git-tree-sha1 = "6cd9e4a207964c07bf6395beff7a1e8f21d0f3b2"
+uuid = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
+version = "0.2.6"
 
 [[deps.TOML]]
 deps = ["Dates"]
