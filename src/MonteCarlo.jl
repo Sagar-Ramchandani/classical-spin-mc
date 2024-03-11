@@ -621,6 +621,9 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
         end
     end
 
+    #perform post-measurement
+    performPostMeasurements!(mc.observables, mc.lattice, mc.parameters.beta)
+
     #write final checkpoint
     if enableOutput
         writeMonteCarlo!(outfile, mc)
@@ -738,6 +741,9 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{Remo
             end
         end
     end
+
+    #perform post-measurement
+    performPostMeasurements!(mc.observables, mc.lattice, mc.parameters.beta)
 
     #write final checkpoint
     if enableOutput
