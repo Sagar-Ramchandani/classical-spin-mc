@@ -152,10 +152,10 @@ Simulated Annealing runs.
 function MonteCarloAnnealing(mc::MonteCarlo, betas::Vector{Float64})
     simulations = Vector{MonteCarlo}(undef, length(betas))
 
-    #Check if betas are sorted in descending order else sorted them
-    if !(issorted(betas, rev=true))
+    #Check if betas are sorted in ascending order else sort them.
+    if !(issorted(betas))
         @warn "Input βs are not sorted. Sorting them anyways."
-        sort!(betas, rev=true)
+        sort!(betas)
     end
 
     for (i, beta) in enumerate(betas)
@@ -652,11 +652,13 @@ end
 Dispatches run to perform a Replica Exchange (Parallel Tempering) run.
 """
 function run!(mcs::MonteCarloExchange, outfile::Union{String,Nothing}=nothing)
-    pmap((i) -> fetch(@spawnat i run!(mcs.MonteCarloObjects[i-1],
-            mcs.betas,
-            mcs.channelsUp[i-1:i], mcs.channelsDown[i-1:i],
-            (outfile === nothing ? outfile : outfile * "." * string(i - 1)))),
-        workers())
+    workersList = workers()
+    function sim(i)
+        return @spawnat workersList[i] run!(mcs.MonteCarloObjects[i], mcs.betas, mcs.channelsUp[i:i+1], mcs.channelsDown[i:i+1],
+            (outfile === nothing ? outfile : outfile * "." * string(i - 1)))
+    end
+    results = map(sim, eachindex(workersList))
+    mcs.MonteCarloObjects = fetch.(results)
 end
 
 """
@@ -745,5 +747,5 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{Remo
 
     #return
     rank == 1 && @printf("Simulation finished on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
-    return nothing
+    return mc
 end

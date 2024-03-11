@@ -1,4 +1,8 @@
-@testset "Cubic lattice AFM + Field" begin
+using Distributed
+addprocs(6)
+@everywhere using ClassicalSpinMC
+
+@testset "PT: Cubic lattice AFM + Field" begin
     #cubic lattice antiferromagnet in a magnetic field
     a1 = (1.0, 0.0, 0.0)
     a2 = (0.0, 1.0, 0.0)
@@ -13,14 +17,20 @@
     setField!(uc, 1, @SVector [0.0, 0.0, 0.2])
     cubiclattice = Lattice(uc, (4, 4, 4))
 
-    m = MonteCarlo(cubiclattice, MonteCarloParameters(beta=2.0, thermalizationSweeps=10_000, measurementSweeps=1000_000, seed=UInt(0)))
+    betas = map(x -> 1 / x, 1.0:-0.1:0.5)
+    m = MonteCarloExchange(
+        MonteCarlo(cubiclattice,
+            MonteCarloParameters(beta=0.0, thermalizationSweeps=10_000, measurementSweeps=100_000, seed=UInt(0))
+        ),
+        betas
+    )
     @suppress run!(m)
-    e, e2 = means(m.observables.energy)
+    e, e2 = means(last(m.MonteCarloObjects).observables.energy)
     @test isapprox(e, -2.4850, rtol=1e-3)
     @test isapprox(e2, 6.1794, rtol=1e-3)
 end
 
-@testset "Triangular lattice FM + Field" begin
+@testset "PT: Triangular lattice FM + Field" begin
     #triangular lattice ferromagnet in a field
     a1 = (3 / 2, sqrt(3) / 2)
     a2 = (3 / 2, -sqrt(3) / 2)
@@ -34,14 +44,20 @@ end
     setField!(uc, 1, @SVector [0.0, 0.0, 0.5])
     triangularlattice = Lattice(uc, (8, 8))
 
-    m = MonteCarlo(triangularlattice, MonteCarloParameters(beta=2.0, thermalizationSweeps=10_000, measurementSweeps=1000_000, seed=UInt(0)))
+    betas = map(x -> 1 / x, 1.0:-0.1:0.5)
+    m = MonteCarloExchange(
+        MonteCarlo(
+            triangularlattice, MonteCarloParameters(beta=2.0, thermalizationSweeps=10_000, measurementSweeps=500_000, seed=UInt(0))
+        ),
+        betas
+    )
     @suppress run!(m)
-    e, e2 = means(m.observables.energy)
+    e, e2 = means(last(m.MonteCarloObjects).observables.energy)
     @test isapprox(e, -2.9806, rtol=1e-3)
     @test isapprox(e2, 8.8882, rtol=1e-3)
 end
 
-@testset "Honeycomb lattice J1-J2-K-Γ-FM-A" begin
+@testset "PT: Honeycomb lattice J1-J2-K-Γ-FM-A" begin
     #honeycomb lattice
     J1 = -1.1 #NN Heisenberg
     J2 = -0.3 #2NN Heisenberg
@@ -75,9 +91,17 @@ end
     setInteractionOnsite!(uc, b2, A * @SMatrix ones(3, 3))
     honeycomblattice = Lattice(uc, (8, 8))
 
-    m = MonteCarlo(honeycomblattice, MonteCarloParameters(beta=0.5, thermalizationSweeps=100_000, measurementSweeps=1000_000, seed=UInt(0)))
+    betas = map(x -> 1 / x, 3.0:-0.2:2.0)
+    m = MonteCarloExchange(
+        MonteCarlo(
+            honeycomblattice, MonteCarloParameters(beta=0.5, thermalizationSweeps=100_000, measurementSweeps=2000_000, seed=UInt(0))
+        ),
+        betas
+    )
     @suppress run!(m)
-    e, e2 = means(m.observables.energy)
+    e, e2 = means(last(m.MonteCarloObjects).observables.energy)
     @test isapprox(e, -4.3855, rtol=1e-3)
     @test isapprox(e2, 19.2992, rtol=1e-3)
 end
+
+rmprocs(workers())
