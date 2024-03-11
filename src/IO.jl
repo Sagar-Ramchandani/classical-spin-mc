@@ -468,6 +468,7 @@ function writeMonteCarlo!(fn::H5, mc::MonteCarlo)
     g = create_group(fn, "mc")
     writeLattice!(g, mc.lattice)
     writeMonteCarloParameters!(g, mc.parameters)
+    writeMonteCarloStatistics!(g, mc.statistics)
     writeObservables!(g, mc.observables)
     return nothing
 end
@@ -491,8 +492,9 @@ function readMonteCarlo(fn::H5)
     g = fn["mc"]
     lattice = readLattice(g)
     parameters = readMonteCarloParameters(g)
+    statistics = readMonteCarloStatistics(g)
     observables = readObservables(g)
-    return MonteCarlo(lattice, parameters, observables)
+    return MonteCarlo(lattice, parameters, statistics, observables)
 end
 
 """
