@@ -186,5 +186,5 @@ Performs measurements and is called after all Monte Carlo sweeps are performed.
 It is intended to do any post measurements based on the collect observables or final state of the system. 
 """
 function performPostMeasurements!(observables::Observables, lattice::T, β::Float64) where {T<:Lattice}
-    observables.specificHeat = getSpecificHeat(observables, β, size(lattice))
+    observables.specificHeat = getSpecificHeat(observables, β, size(lattice.spins, 1))
 end
