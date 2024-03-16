@@ -4,8 +4,8 @@ __init__() = println("Package extension loaded")
 
 using PyCall, PyPlot, HDF5, StaticArrays, Statistics
 import ClassicalSpinMC: loadObservables, getSpins, groupSpins,
-	plotSpins, plotSpins!, originPlot, originPlot!, gsPlot, gsPlot!, gsMultiple,
-	plotObservables, plotMC
+    plotSpins, plotSpins!, originPlot, originPlot!, gsPlot, gsPlot!, gsMultiple,
+    plotObservables, plotMC
 
 
 using3D()
