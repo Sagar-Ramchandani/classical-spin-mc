@@ -103,6 +103,15 @@ function addInteraction!(unitcell::UnitCell{D}, b1::Int, b2s::Vector{Int}, M::SM
 end
 
 """
+    function addInteraction!(unitcell::UnitCell{D}, b1::Int, b2::Int, M::Matrix{Float64}, offset::NTuple{D,Int}=Tuple(zeros(Int, D))) where {D}
+Convenience function that converts to SMatrix and creates the `b1` and `b2` pair automatically.
+"""
+function addInteraction!(unitcell::UnitCell{D}, b1::Int, b2::Int, M::Matrix{Float64}, offset::NTuple{D,Int}=Tuple(zeros(Int, D))) where {D}
+    staticM = SMatrix{size(M)...}(M)
+    addInteraction!(unitcell, b1 => b2, staticM, offset)
+end
+
+"""
 --------------------------------------------------------------------------------
 setInteractionOnSite! functions
 --------------------------------------------------------------------------------
@@ -225,7 +234,7 @@ function Base.length(unitcell::UnitCell{D})::Int where {D}
 end
 
 function Base.:show(io::IO, uc::UnitCell{D}) where {D}
-    println(io, "$(2)D Unitcell with $(length(uc.basis)) sites and $(length(uc.interactions)) interactions")
+    println(io, "$(dimension(uc))D Unitcell with $(length(uc.basis)) sites and $(length(uc.interactions)) interactions")
 end
 
 import Base: ==
