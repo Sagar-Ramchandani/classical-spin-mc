@@ -1,0 +1,12 @@
+function loadObservables end
+function getSpins end
+function groupSpins end
+function plotSpins end
+function plotSpins! end
+function originPlot end
+function originPlot! end
+function gsPlot end
+function gsPlot! end
+function gsMultiple end
+function plotObservables end
+function plotMC end
