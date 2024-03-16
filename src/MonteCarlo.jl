@@ -612,7 +612,7 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
 
         #write checkpoint
         if enableOutput
-            checkpointPending = time() - lastCheckpointTime >= mc.checkpointInterval
+            checkpointPending = time() - lastCheckpointTime >= mc.parameters.checkpointInterval
             if checkpointPending
                 writeCheckpoint!(outfile, mc)
                 lastCheckpointTime = time()
