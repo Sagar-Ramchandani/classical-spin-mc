@@ -118,7 +118,7 @@ function Observables(lattice::T) where {T<:Lattice}
 end
 
 #Review this
-function getSpecificHeat(obs::Observables, β::Float64, N::Int64)
+function getSpecificHeat(obs::O, β::Float64, N::Int64) where {O<:AbstractObservables}
     k = β * β * N
     c(e) = k * (e[2] - e[1] * e[1])
     ∇c(e) = [-2.0 * e[1] * k, k]
