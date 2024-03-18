@@ -4,8 +4,8 @@ Common IO for all plots
 --------------------------------------------------------------------------------
 """
 
-function getFileNames(location)
-    return filter((x) -> !isdir(x), readdir(location, join=true))
+function getFileNames(location; fileExtension="h5")
+    return filter((x) -> contains(x, fileExtension) && !isdir(x), readdir(location, join=true))
 end
 
 function getFolderNames(location)
