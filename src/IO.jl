@@ -432,10 +432,11 @@ Saving and loading Observables
     function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables)
 Writes the built-in Observables in a H5 object.
 """
-function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables)
+function writeObservables!(fn::H5, obs::O) where {O<:AbstractObservables}
     o = create_group(fn, "observables")
+    o["Type"] = String(Symbol(typeof(obs)))
 
-    for field in fieldnames(Observables)
+    for field in fieldnames(O)
         currentObservableName = String(field)
         currentObservable = getfield(obs, field)
         save!(o, String(field), getfield(obs, field))
@@ -449,9 +450,17 @@ end
     function readObservables(fn::Union{HDF5.File,HDF5.Group})
 Reads the built-in Observables from a H5 object.
 """
-function readObservables(fn::Union{HDF5.File,HDF5.Group})
+function readObservables(fn::H5)
     o = fn["observables"]
-    return Observables([load(o, String(field)) for field in fieldnames(Observables)]...)
+    observablesType = haskey(o, "Type") ? Symbol(read(o["Type"])) : nothing
+
+    if observablesType === nothing
+        return Observables([load(o, String(field)) for field in fieldnames(Observables)]...)
+    else
+        !(isdefined(Main, observablesType)) && error("$observablesType not defined")
+        customObs = getfield(Main, observablesType)
+        return customObs([load(o, String(field)) for field in fieldnames(Observables)]...)
+    end
 end
 
 """
