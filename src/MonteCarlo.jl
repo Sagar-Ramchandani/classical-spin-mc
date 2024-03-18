@@ -64,15 +64,15 @@ end
     mutable struct MonteCarlo
 This is used to store all information about a Monte Carlo run.
 """
-mutable struct MonteCarlo{T<:Lattice,P<:MonteCarloParameters}
+mutable struct MonteCarlo{T<:Lattice,P<:MonteCarloParameters,O<:AbstractObservables}
     lattice::T
     parameters::P
     statistics::MonteCarloStatistics
-    observables::Observables
+    observables::O
 
     function MonteCarlo(lattice::T, parameters::P, statistics::MonteCarloStatistics,
-        observables::Observables) where {T<:Lattice,P<:MonteCarloParameters}
-        mc = new{T,P}(deepcopy(lattice), parameters, statistics, observables)
+        observables::O) where {T<:Lattice,P<:MonteCarloParameters,O<:AbstractObservables}
+        mc = new{T,P,O}(deepcopy(lattice), parameters, statistics, observables)
         Random.seed!(mc.parameters.rng, mc.parameters.seed)
         return mc
     end
@@ -129,7 +129,7 @@ end
 Constructor that generates a MonteCarloStatistics struct automatically.
 """
 function MonteCarlo(lattice::T, parameters::MonteCarloParameters,
-    observables::Observables) where {T<:Lattice}
+    observables::O) where {T<:Lattice,O<:AbstractObservables}
     return MonteCarlo(lattice, parameters, MonteCarloStatistics(), observables)
 end
 
