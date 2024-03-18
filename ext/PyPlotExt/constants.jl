@@ -56,7 +56,7 @@ function getTicks(observable::Vector{T}, prop::Symbol) where {T}
         :m2 => x -> (0, (1)^2),
         :m4 => x -> (0, (1)^4),
         :mPlanar => x -> (0, maximum(x)),
-        :z6 => x -> ((mean(x) > 0) ? (0.0, maximum(x)) : (minimum(x), 0.0), 3),
+        :z6 => x -> ((mean(x) > 0) ? (0.0, maximum(x)) : (minimum(x), 0.0)),
         :chirality => x -> (-2 * sqrt(6) / 9, 2 * sqrt(6) / 9),
         :fraction => x -> (0, 1),
         :replicaAcceptance => x -> (0, maximum(x)),
