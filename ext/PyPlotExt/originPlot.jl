@@ -71,7 +71,7 @@ function gsPlot!(axis, fileLocation; saveLocation=nothing)
     filenames = getFileNames(fileLocation)
     β = [h5read("$(fn)", "mc/parameters/beta") for fn in filenames]
     perm = sortperm(β)
-    gs = fileLocation * last(filenames[perm])
+    gs = last(filenames[perm])
     originPlot!(axis, gs)
     !(saveLocation === nothing) && savefig(fileLocation * "/cop.pdf", format="pdf")
     return nothing
