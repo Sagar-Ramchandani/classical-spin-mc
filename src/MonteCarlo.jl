@@ -267,9 +267,10 @@ Initialize the spin configuration of a lattice using the conicalUpdate method.
     using a different method first. This method is provided only for consistency.
 """
 function initSpinConfiguration!(lattice::Lattice{D,N}, f::typeof(conicalUpdate), rng=Random.GLOBAL_RNG) where {D,N}
-    @warn "Conical updates only work if the lattice is already initialized"
+    @warn "Conical updates only work if the lattice is already initialized,
+    using sphericalUpdate instead"
     for i in 1:length(lattice)
-        setSpin!(lattice, i, f(getSpin(lattice, i), 1.0π, rng))
+        setSpin!(lattice, i, sphericalUpdate(rng))
     end
 end
 
@@ -291,6 +292,7 @@ function specified in MonteCarloParameters.
 function initSpinConfiguration!(mc::MonteCarlo{T}) where {T<:Lattice}
     if (mc.parameters.sweep == 0) && mc.parameters.randomizeInitialConfiguration
         initSpinConfiguration!(mc.lattice, mc.parameters.updateFunction, mc.parameters.rng)
+        mc.parameters.randomizeInitialConfiguration = false
     end
 end
 
@@ -564,6 +566,9 @@ function sanityChecks(mc::MonteCarlo{T}, outfile::Union{String,Nothing}=nothing)
             end
         end
     end
+
+    #Update initializationTime
+    mc.statistics.initializationTime = time()
     return enableOutput
 end
 
