@@ -23,6 +23,38 @@
         end
         @test all(isapprox.(total ./ N, zeros(3), atol=1.0e-3))
     end
+    @testset "Magnitude of Spins:sphericalUpdate" begin
+        N = 10_000_000
+        testPass = true
+        for _ in 1:N
+            if !(isapprox(norm(sphericalUpdate()), 1.0))
+                testPass = false
+                break
+            end
+        end
+        @test testPass
+    end
+    @testset "Magnitude of Spins:marsagliaSphereUpdate" begin
+        N = 10_000_000
+        testPass = true
+        for _ in 1:N
+            if !(isapprox(norm(marsagliaSphereUpdate()), 1.0))
+                testPass = false
+                break
+            end
+        end
+        @test testPass
+    end
+    @testset "Magnitude of Spins:conicalUpdate" begin
+        N = 10_000_000
+        testPass = true
+        for _ in 1:N
+            if !(isapprox(norm(conicalUpdate(@SVector(ones(3)), rand())), 1.0))
+                testPass = false
+            end
+        end
+        @test testPass
+    end
 
     """
     Testing exchange energy
