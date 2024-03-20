@@ -10,3 +10,4 @@ function gsPlot! end
 function gsMultiple end
 function plotObservables end
 function plotMC end
+function plotHist end

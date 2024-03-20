@@ -39,7 +39,7 @@ export writeUnitcell!, readUnitcell,
 include("Plotting.jl")
 export loadObservables, getSpins, groupSpins,
     plotSpins, plotSpins!, originPlot, originPlot!, gsPlot, gsPlot!, gsMultiple,
-    plotObservables, plotMC
+    plotObservables, plotMC, plotHist
 
 using Reexport
 @reexport using BinningAnalysis

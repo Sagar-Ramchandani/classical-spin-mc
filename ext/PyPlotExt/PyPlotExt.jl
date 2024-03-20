@@ -3,7 +3,7 @@ module PyPlotExt
 using PyCall, PyPlot, HDF5, StaticArrays, Statistics
 import ClassicalSpinMC: loadObservables, getSpins, groupSpins,
     plotSpins, plotSpins!, originPlot, originPlot!, gsPlot, gsPlot!, gsMultiple,
-    plotObservables, plotMC
+    plotObservables, plotMC, plotHist
 
 
 using3D()
@@ -16,5 +16,7 @@ include("originPlot.jl")
 export plotSpins, plotSpins!, originPlot, originPlot!, gsPlot, gsPlot!, gsMultiple
 include("plotMC.jl")
 export plotObservables, plotMC
+include("hists.jl")
+export plotHist
 
 end #module
