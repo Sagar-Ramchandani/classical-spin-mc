@@ -1,3 +1,9 @@
+"""
+--------------------------------------------------------------------------------
+Plots building blocks
+--------------------------------------------------------------------------------
+"""
+
 function plotArrow(ax, startPoint, endPoint; lengthRatio=0.05, color=defaultColor, kwargs...)
     δ = endPoint - startPoint
     ax.quiver(startPoint..., δ..., arrow_length_ratio=lengthRatio, color=color; kwargs...)
@@ -53,6 +59,12 @@ function plotSpins(spins; arrow=false, kwargs...)
     plotSpins!(axis, spins, arrow=arrow; kwargs...)
     return fig, axis
 end
+
+"""
+--------------------------------------------------------------------------------
+Functions for common origin plots
+--------------------------------------------------------------------------------
+"""
 
 function originPlot!(axis, fn)
     spins = getSpins(fn)
