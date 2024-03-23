@@ -58,12 +58,12 @@ function conicalUpdate(v::SVector{3,Float64}, t::Float64, rng=Random.GLOBAL_RNG)
     zAxis = SVector(0.0, 0.0, 1.0)
     c = dot(zAxis, v)
     s = sqrt(1 - c^2)
-    r = conicalNorthPole(t, rng)
-    axis = normalize(cross(zAxis, v))
+    rx, ry, rz = conicalNorthPole(t, rng)
+    ux, uy, uz = normalize(cross(zAxis, v))
     rotatedVector = SVector(
-        r[1] * (c + axis[1]^2 * (1 - c)) + r[2] * axis[1] * axis[2] * (1 - c) - (axis[3] * s) + r[3] * axis[1] * axis[3] * (1 - c) + (axis[2] * s),
-        r[1] * axis[1] * axis[2] * (1 - c) + (axis[3] * s) + r[2] * c + (axis[2]^2) * (1 - c) + r[3] * axis[2] * axis[3] * (1 - c) - (axis[1] * s),
-        r[1] * axis[1] * axis[3] * (1 - c) - (axis[2] * s) + r[2] * axis[2] * axis[3] * (1 - c) + (axis[1] * s) + r[3] * c + (axis[3]^2) * (1 - c)
+        rx * (c + ux^2 * (1 - c)) + ry * (ux * uy * (1 - c) - (uz * s)) + rz * (ux * uz * (1 - c) + (uy * s)),
+        rx * (ux * uy * (1 - c) + (uz * s)) + ry * (c + (uy^2) * (1 - c)) + rz * (uy * uz * (1 - c) - (ux * s)),
+        rx * (ux * uz * (1 - c) - (uy * s)) + ry * (uy * uz * (1 - c) + (ux * s)) + rz * (c + (uz^2) * (1 - c))
     )
     return rotatedVector
 end
