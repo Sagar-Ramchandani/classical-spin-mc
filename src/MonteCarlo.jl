@@ -640,6 +640,12 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
     return nothing
 end
 
+"""
+    function anneal!(mc::M, betas::Vector{Float64}) where {M<:MonteCarlo}
+Anneals a given MonteCarlo object through the given array of betas 
+without creating intermediate MonteCarloAnnealing and
+MonteCarlo objects.
+"""
 function anneal!(mc::M, betas::Vector{Float64}) where {M<:MonteCarlo}
     measurementSweeps = mc.parameters.measurementSweeps
     measurementSweeps = 0
