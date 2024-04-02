@@ -21,7 +21,7 @@ Interface function to write a MonteCarlo checkpoint.
     Checkpoints use Serialization and thus are not recommended for long term storage 
     as they may not be supported on a different Julia version.
 """
-function writeCheckpoint!(filename::String, mc::MonteCarlo{Lattice{D,N}}) where {D,N}
+function writeCheckpoint!(filename::String, mc::MonteCarlo{T,P,O}) where {T<:Lattice,P<:MonteCarloParameters,O<:AbstractObservables}
     h5open(filename, "w") do f
         data = IOBuffer()
         serialize(data, mc)
