@@ -640,6 +640,22 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
     return nothing
 end
 
+function anneal!(mc::M, betas::Vector{Float64}) where {M<:MonteCarlo}
+    measurementSweeps = mc.parameters.measurementSweeps
+    measurementSweeps = 0
+    for (i, b) in betas
+        mc.parameters.sweeps = 0
+        mc.parameters.beta = b
+        if i != 1
+            mc.parameters.randomizeInitialConfiguration = false
+        end
+        if i == n
+            mc.parameters.measurementSweeps = measurementSweeps
+        end
+        run!(mc, outfile=nothing)
+    end
+end
+
 """
     function run!(mcs::MonteCarloAnnealing; outfile::Union{String,Nothing}=nothing)
 Dispatches run to perform a Simulated Annealing run.

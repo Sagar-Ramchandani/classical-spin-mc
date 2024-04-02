@@ -23,7 +23,7 @@ export marsagliaSphereUpdate, sphericalUpdate, conicalUpdate,
 
 include("MonteCarlo.jl")
 export MonteCarlo, MonteCarloStatistics, MonteCarloParameters, MonteCarloAnnealing, MonteCarloExchange,
-    run!, anneal, initSpinConfiguration!, localSweep, microcanonicalSweep!, replicaExchange!,
+    run!, anneal!, initSpinConfiguration!, localSweep, microcanonicalSweep!, replicaExchange!,
     localUpdate, microcanonicalRotation, microcanonicalRotationRandom, printStatistics!, sanityChecks,
     createChannels
 
