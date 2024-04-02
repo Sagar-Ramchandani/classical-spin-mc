@@ -93,8 +93,8 @@ This is a wrapper around MonteCarlo and is used to store the
 multiple Monte Carlo structs and resources needed for distributed 
 computing during a Replica Exchange (Parallel tempering) run.
 """
-mutable struct MonteCarloExchange{T}
-    MonteCarloObjects::Vector{MonteCarlo}
+mutable struct MonteCarloExchange{T,L,P,O}
+    MonteCarloObjects::AbstractVector{MonteCarlo{L,P,O}}
     betas::Vector{Float64}
     channelsUp::Vector{RemoteChannel{Channel{T}}}
     channelsDown::Vector{RemoteChannel{Channel{T}}}
