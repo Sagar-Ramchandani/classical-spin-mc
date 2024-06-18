@@ -200,7 +200,8 @@ function readMonteCarloParameters(fn::H5)
     to be available in the Main namespace. 
     """
     #Load the state of a general rng 
-    RandomGenerator = getfield(Main, Symbol(read(rng["type"])))()
+    #RandomGenerator = getfield(Main, Symbol(read(rng["type"])))()
+    RandomGenerator = getfield(Main, Symbol(last(split(read(rng["type"]), '.'))))()
     for field in fieldnames(typeof(RandomGenerator))
         setfield!(RandomGenerator, field, read(rng[String(field)]))
     end
@@ -459,7 +460,7 @@ function readObservables(fn::H5)
     else
         !(isdefined(Main, observablesType)) && error("$observablesType not defined")
         customObs = getfield(Main, observablesType)
-        return customObs([load(o, String(field)) for field in fieldnames(Observables)]...)
+        return customObs([load(o, String(field)) for field in fieldnames(customObs)]...)
     end
 end
 
