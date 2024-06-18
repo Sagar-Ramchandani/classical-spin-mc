@@ -14,7 +14,7 @@ Constants for MC plots
 ------------------------------------------------------------------------------
 """
 const defaultMarker = "o"
-const defaultMarkerSize = 10
+const defaultMarkerSize = 3
 const errorColor = defaultColor
 const transitionColor = "#AAAAEE"
 
@@ -22,11 +22,11 @@ const labelsDict = Dict(
     :energy => raw"energy $E$",
     :specificHeat => raw"specific heat $C_v$",
     :magnetization => raw"magnetization $m$",
-    :m2 => raw"$m^2 ",
-    :m4 => raw"$m^4 ",
+    :m2 => raw"$m^2$",
+    :m4 => raw"$m^4$",
     :mPlanar => raw"planar magnetization $m_p $",
     :z6 => raw"order parameter $z_6$",
-    :chirality => raw"chirality $\chi ",
+    :chirality => raw"chirality $\chi$",
     :binder => raw"binder cumulant $U_L$",
 )
 
@@ -34,13 +34,14 @@ function getLimits(observable::Vector{T}, prop::Symbol) where {T}
     defaultFunction = extrema
     limitsDict = Dict{Symbol,Any}(
         :energy => (x) -> (minimum(x), 0.0),
-        :specificHeat => (x) -> (0.0, maximum(x)),
+        :specificHeat => (x) -> (0.0, ceil(Int64, maximum(x))),
         :magnetization => (x) -> (0.0, 2 / 3),
         :m2 => (x) -> (0.0, (1)^2),
         :m4 => (x) -> (0.0, (1)^4),
         :mPlanar => (x) -> (0.0, maximum(x)),
+        :z6 => x -> (-0.12, 0.0),
         #:z6 => x -> (mean(x) > 0) ? (0.0, maximum(x)) : (minimum(x), 0.0),
-        :z6 => x -> (mean(x) > 0) ? (0.0, 1.0) : (-1.0, 0.0),
+        #:z6 => x -> (mean(x) > 0) ? (0.0, 1.0) : (-1.0, 0.0),
         :chirality => (x) -> (-2 * sqrt(6) / 9, 2 * sqrt(6) / 9),
         :fraction => (x) -> (0, 1),
         :replicaAcceptance => (x) -> (0, maximum(x)),
@@ -51,14 +52,15 @@ end
 function getTicks(observable::Vector{T}, prop::Symbol) where {T}
     defaultFunction = (x) -> round.(extrema(x), sigdigits=3)
     ticksDict = Dict(
-        :energy => x -> (minimum(x), 0),
-        :specificHeat => x -> (0, maximum(x)),
+        :energy => x -> (-2, 0),#(minimum(x), 0),
+        :specificHeat => x -> (0, ceil(Int64, maximum(x))),
         :magnetization => x -> (0 // 1, 2 // 3),
         :m2 => x -> (0, (1)^2),
         :m4 => x -> (0, (1)^4),
         :mPlanar => x -> (0, maximum(x)),
+        :z6 => x -> (-0.1, 0.0),
         #:z6 => x -> ((mean(x) > 0) ? (0.0, maximum(x)) : (minimum(x), 0.0)),
-        :z6 => x -> (mean(x) > 0) ? (0.0, 1.0) : (-1.0, 0.0),
+        #:z6 => x -> (mean(x) > 0) ? (0.0, 1.0) : (-1.0, 0.0),
         :chirality => x -> (-2 * sqrt(6) / 9, 2 * sqrt(6) / 9),
         :fraction => x -> (0, 1),
         :replicaAcceptance => x -> (0, maximum(x)),
