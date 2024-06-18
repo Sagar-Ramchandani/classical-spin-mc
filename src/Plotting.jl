@@ -1,6 +1,9 @@
 function loadObservables end
+function processObservables! end
+function loadProcessedObservables end
 function getSpins end
 function groupSpins end
+function copBase end
 function plotSpins end
 function plotSpins! end
 function originPlot end
@@ -8,6 +11,11 @@ function originPlot! end
 function gsPlot end
 function gsPlot! end
 function gsMultiple end
+function originPlotMultiple end
+function plotBase end
+function plotObservables! end
 function plotObservables end
+function plotMC! end
 function plotMC end
 function plotHist end
+function plotHistMultiple end
