@@ -37,9 +37,9 @@ export writeUnitcell!, readUnitcell,
     save!, load #Only export for debugging
 
 include("Plotting.jl")
-export loadObservables, getSpins, groupSpins,
-    plotSpins, plotSpins!, originPlot, originPlot!, gsPlot, gsPlot!, gsMultiple,
-    plotObservables, plotMC, plotHist
+export loadObservables, processObservables!, loadProcessedObservables, getSpins, groupSpins, copBase,
+    plotSpins, plotSpins!, originPlot, originPlot!, gsPlot, gsPlot!, gsMultiple, originPlotMultiple,
+    plotBase, plotObservables!, plotObservables, plotMC!, plotMC, plotHist, plotHistMultiple
 
 using Reexport
 @reexport using BinningAnalysis
