@@ -49,7 +49,6 @@ end
     h5open(tempname(), "w") do f
         @test writeMonteCarlo!(f, mc) === nothing
         mcLoaded = readMonteCarlo(f)
-        println(mcLoaded == mc)
         @test mcLoaded == mc
     end
 end

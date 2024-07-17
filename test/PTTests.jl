@@ -1,5 +1,5 @@
 using Distributed
-addprocs(6)
+!(nworkers == 6) && addprocs(6)
 @everywhere using ClassicalSpinMC
 
 @testset "PT: Cubic lattice AFM + Field" begin
