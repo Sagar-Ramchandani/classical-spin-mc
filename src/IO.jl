@@ -38,7 +38,7 @@ Interface function to read a MonteCarlo checkpoint.
 """
 function readCheckpoint(filename::String)
     h5open(filename, "r") do f
-        data = IOBuffer(read(f["checkpoint"]))
+        data = IOBuffer(read_dataset(f, "checkpoint"))
         return deserialize(data)
     end
 end
@@ -84,25 +84,26 @@ end
 Reads the unitcell from a H5 object.
 """
 function readUnitcell(fn::H5)
-    u = fn["unitcell"]
+    u = open_group(fn, "unitcell")
     #Read primitive vectors and create unitcell
-    D = read(u["D"])
-    primitive = NTuple{D, SVector{D, Float64}}(eachcol(read(u["primitive"])))
-    basis = Vector{SVector{D, Float64}}(eachcol(read(u["basis"])))
-    interactionsField = Vector{SVector{3, Float64}}(eachcol(read(u["interactionsField"])))
+    D = read_dataset(u, "D")
+    primitive = NTuple{D, SVector{D, Float64}}(eachcol(read_dataset(u, "primitive")))
+    basis = Vector{SVector{D, Float64}}(eachcol(read_dataset(u, "basis")))
+    interactionsField = Vector{SVector{3, Float64}}(eachcol(read_dataset(
+        u, "interactionsField")))
 
-    onsite = u["interactionsOnsite"]
-    interactionsOnsite = [SMatrix{3, 3}(read(onsite[key])) for key in keys(onsite)]
+    onsite = open_group(u, "interactionsOnsite")
+    interactionsOnsite = [SMatrix{3, 3}(read_dataset(onsite, key)) for key in keys(onsite)]
 
-    inter = u["interactions"]
+    inter = open_group(u, "interactions")
 
-    interactions = [(read(inter["$(key)/b1"]) => read(inter["$(key)/b2"]),
-                        NTuple{D, Int}(read(inter["$(key)/offset"])),
-                        SMatrix{3, 3, Float64, 9}(read(inter["$(key)/M"])))
+    interactions = [(read_dataset(inter, "$(key)/b1") => read_dataset(inter, "$(key)/b2"),
+                        NTuple{D, Int}(read_dataset(inter, "$(key)/offset")),
+                        SMatrix{3, 3, Float64, 9}(read_dataset(inter, "$(key)/M")))
                     for key in keys(inter)]
 
-    anisotropyFunction = getfield(Main, Symbol(read(u["anisotropyFunction"])))
-    anisotropyParameters = read(u["anisotropyParameters"])
+    anisotropyFunction = getfield(Main, Symbol(read_dataset(u, "anisotropyFunction")))
+    anisotropyParameters = read_dataset(u, "anisotropyParameters")
 
     return UnitCell(primitive, basis, interactions, interactionsOnsite, interactionsField,
         anisotropyFunction, anisotropyParameters)
@@ -138,9 +139,9 @@ function readLattice(fn::H5)
     """
     Reconstruct information using the lattice constructor
     """
-    l = fn["lattice"]
-    spins = Vector{SVector{3, Float64}}(eachcol(read(l["spins"])))
-    lattice = Lattice(readUnitcell(l), Tuple(read(l["L"])))
+    l = open_group(fn, "lattice")
+    spins = Vector{SVector{3, Float64}}(eachcol(read_dataset(l, "spins")))
+    lattice = Lattice(readUnitcell(l), Tuple(read_dataset(l, "L")))
     lattice.spins = spins
     return lattice
 end
@@ -191,8 +192,8 @@ end
 Reads the MonteCarloParameters from a H5 object.
 """
 function readMonteCarloParameters(fn::H5)
-    p = fn["parameters"]
-    rng = p["rng"]
+    p = open_group(fn, "parameters")
+    rng = open_group(p, "rng")
 
     """
     Note: The code needs the rng type and also the update function
@@ -200,25 +201,25 @@ function readMonteCarloParameters(fn::H5)
     """
     #Load the state of a general rng 
     #RandomGenerator = getfield(Main, Symbol(read(rng["type"])))()
-    RandomGenerator = getfield(Main, Symbol(last(split(read(rng["type"]), '.'))))()
+    RandomGenerator = getfield(Main, Symbol(last(split(read_dataset(rng, "type"), '.'))))()
     for field in fieldnames(typeof(RandomGenerator))
-        setfield!(RandomGenerator, field, read(rng[String(field)]))
+        setfield!(RandomGenerator, field, read_dataset(rng, String(field)))
     end
     mcp = MonteCarloParameters(
-        read(p["beta"]),
-        read(p["thermalizationSweeps"]),
-        read(p["measurementSweeps"]),
-        read(p["measurementRate"]),
-        read(p["microcanonicalRoundsPerSweep"]),
-        read(p["replicaExchangeRate"]),
-        read(p["randomizeInitialConfiguration"]),
-        read(p["reportInterval"]),
-        read(p["checkpointInterval"]),
+        read_dataset(p, "beta"),
+        read_dataset(p, "thermalizationSweeps"),
+        read_dataset(p, "measurementSweeps"),
+        read_dataset(p, "measurementRate"),
+        read_dataset(p, "microcanonicalRoundsPerSweep"),
+        read_dataset(p, "replicaExchangeRate"),
+        read_dataset(p, "randomizeInitialConfiguration"),
+        read_dataset(p, "reportInterval"),
+        read_dataset(p, "checkpointInterval"),
         RandomGenerator,
-        read(p["seed"]),
-        read(p["sweep"]),
-        getfield(Main, Symbol(read(p["updateFunction"]))),
-        read(p["updateParameter"])
+        read_dataset(p, "seed"),
+        read_dataset(p, "sweep"),
+        getfield(Main, Symbol(read_dataset(p, "updateFunction"))),
+        read_dataset(p, "updateParameter")
     )
     return mcp
 end
@@ -343,49 +344,54 @@ load functions for observable fields
 
 #Loading a general observable with mean and error
 function load(::Val{T}, fn::H5, path::String) where {T}
-    mean = read(fn["$(path)/mean"])
-    error = read(fn["$(path)/error"])
+    mean = read_dataset(fn, "$(path)/mean")
+    error = read_dataset(fn, "$(path)/error")
     return (mean, error)
 end
 
 #Loading a vector
 function load(::Val{Vector{T}}, fn::H5, path::String) where {T <: Real}
-    return read(fn["$(path)/values"])
+    return read_dataset(fn, "$(path)/values")
 end
 
 #Loading accumulator
 function load(::Val{BinningAnalysis.Variance{T}}, fn::H5, path::String) where {T}
-    indexes = map((x) -> parse(Int, x), keys(fn["$(path)/accumulators"]))
+    indexes = map((x) -> parse(Int, x), keys(open_group(fn, "$(path)/accumulators")))
     Nindexes = length(indexes)
     accums = Vector{BinningAnalysis.Variance{T}}(undef, Nindexes)
     for i in indexes
-        acc = fn["$(path)/accumulators/$(i)/"]
+        acc = open_group(fn, "$(path)/accumulators/$(i)/")
         accums[i] = BinningAnalysis.Variance(
-            read(acc["δ"]), read(acc["m1"]), read(acc["m2"]), read(acc["count"]))
+            read_dataset(acc, "δ"),
+            read_dataset(acc, "m1"),
+            read_dataset(acc, "m2"),
+            read_dataset(acc, "count"))
     end
     return NTuple{Nindexes, BinningAnalysis.Variance{T}}(accums)
 end
 
 #Loading compressor
 function load(::Val{BinningAnalysis.Compressor{T}}, fn::H5, path::String) where {T}
-    indexes = map((x) -> parse(Int, x), keys(fn["$(path)/compressors"]))
+    indexes = map((x) -> parse(Int, x), keys(open_group(fn, "$(path)/compressors")))
     Nindexes = length(indexes)
     comps = Vector{BinningAnalysis.Compressor{T}}(undef, Nindexes)
     for i in indexes
-        cp = fn["$(path)/compressors/$(i)/"]
-        comps[i] = BinningAnalysis.Compressor(read(cp["value"]), read(cp["switch"]))
+        cp = open_group(fn, "$(path)/compressors/$(i)/")
+        comps[i] = BinningAnalysis.Compressor(
+            read_dataset(cp, "value"), read_dataset(cp, "switch"))
     end
     return NTuple{Nindexes, BinningAnalysis.Compressor{T}}(comps)
 end
 
 #Loading EPCompressor
 function load(::Val{BinningAnalysis.EPCompressor{T}}, fn::H5, path::String) where {T}
-    indexes = map((x) -> parse(Int, x), keys(fn["$(path)/compressors"]))
+    indexes = map((x) -> parse(Int, x), keys(open_group(fn, "$(path)/compressors")))
     Nindexes = length(indexes)
     comps = Vector{BinningAnalysis.EPCompressor{T}}(undef, Nindexes)
     for i in indexes
-        cp = fn["$(path)/compressors/$(i)/"]
-        comps[i] = BinningAnalysis.EPCompressor(read(cp["values"]), read(cp["switch"]))
+        cp = open_group(fn, "$(path)/compressors/$(i)/")
+        comps[i] = BinningAnalysis.EPCompressor(
+            read_dataset(cp, "values"), read_dataset(cp, "switch"))
     end
     return NTuple{Nindexes, BinningAnalysis.EPCompressor{T}}(comps)
 end
@@ -393,15 +399,15 @@ end
 #Loading ErrorPropagator
 function load(::Val{ErrorPropagator{T, D}}, fn::H5, path::String) where {T, D}
     comp = load(Val(BinningAnalysis.EPCompressor{T}), fn, path)
-    sums1D = eachcol(read(fn["$(path)/sums1D"]))
+    sums1D = eachcol(read_dataset(fn, "$(path)/sums1D"))
     sums1D = NTuple{length(sums1D), Vector{T}}(sums1D)
-    sums2D = (read(fn["$(path)/sums2D"]))
+    sums2D = read_dataset(fn, "$(path)/sums2D")
     dimensions = size(sums2D, 1)
     sums2D = reshape(sums2D, dimensions, dimensions, :)
     dimensions = size(sums2D, 3)
     sums2D = NTuple{dimensions, Matrix{T}}([Matrix{T}(sums2D[:, :, i])
                                             for i in 1:dimensions])
-    count = read(fn["$(path)/count"])
+    count = read_dataset(fn, "$(path)/count")
     return ErrorPropagator(comp, sums1D, sums2D, count)
 end
 
@@ -416,12 +422,12 @@ end
 #Loading FullBinner
 function load(
         ::Val{FullBinner{T}}, fn::Union{HDF5.File, HDF5.Group}, path::String) where {T}
-    return FullBinner(T(ncols(read(fn["$(path)/values"]))))
+    return FullBinner(T(ncols(read(open_dataset(fn, "$(path)/values")))))
 end
 
 #Top-level load function
 function load(fn::H5, path::String)
-    observableType = eval(Meta.parse(read(fn["$(path)/observableType"])))
+    observableType = eval(Meta.parse(read_dataset(fn, "$(path)/observableType")))
     return load(Val(observableType), fn, path)
 end
 
@@ -458,8 +464,8 @@ observable type exists. If no observable type is defined,
 it switches to the built-in observables.
 """
 function readObservables(fn::H5)
-    o = fn["observables"]
-    observablesType = haskey(o, "Type") ? Symbol(read(o["Type"])) : nothing
+    o = open_group(fn, "observables")
+    observablesType = haskey(o, "Type") ? Symbol(read_dataset(o, "Type")) : nothing
 
     if observablesType === nothing
         return Observables([load(o, String(field)) for field in fieldnames(Observables)]...)
@@ -505,7 +511,7 @@ end
 Reads the MonteCarlo object from a H5 object.
 """
 function readMonteCarlo(fn::H5)
-    g = fn["mc"]
+    g = open_group(fn, "mc")
     lattice = readLattice(g)
     parameters = readMonteCarloParameters(g)
     statistics = readMonteCarloStatistics(g)
