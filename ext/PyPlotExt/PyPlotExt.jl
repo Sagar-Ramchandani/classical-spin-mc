@@ -1,10 +1,12 @@
 module PyPlotExt
 
 using PyCall, PyPlot, HDF5, StaticArrays, Statistics, Measurements
-import ClassicalSpinMC: loadObservables, processObservables!, loadProcessedObservables, getSpins, groupSpins,
-    plotSpins, plotSpins!, originPlot, originPlot!, gsPlot, gsPlot!, gsMultiple,
-    plotBase, plotObservables!, plotObservables, plotMC!, plotMC, plotHist
-
+import ClassicalSpinMC: loadObservables, processObservables!, loadProcessedObservables,
+                        getSpins, groupSpins,
+                        plotSpins, plotSpins!, originPlot, originPlot!, gsPlot, gsPlot!,
+                        gsMultiple,
+                        plotBase, plotObservables!, plotObservables, plotMC!, plotMC,
+                        plotHist
 
 using3D()
 include("constants.jl")

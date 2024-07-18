@@ -41,7 +41,7 @@ end
     mutable struct MonteCarloParameters
 This is used to store any parameters used to configure the Monte Carlo run.
 """
-@kwdef mutable struct MonteCarloParameters{U<:AbstractRNG,UP<:Function}
+@kwdef mutable struct MonteCarloParameters{U <: AbstractRNG, UP <: Function}
     beta::Float64
     thermalizationSweeps::Int
     measurementSweeps::Int
@@ -64,15 +64,16 @@ end
     mutable struct MonteCarlo
 This is used to store all information about a Monte Carlo run.
 """
-mutable struct MonteCarlo{T<:Lattice,P<:MonteCarloParameters,O<:AbstractObservables}
+mutable struct MonteCarlo{T <: Lattice, P <: MonteCarloParameters, O <: AbstractObservables}
     lattice::T
     parameters::P
     statistics::MonteCarloStatistics
     observables::O
 
     function MonteCarlo(lattice::T, parameters::P, statistics::MonteCarloStatistics,
-        observables::O) where {T<:Lattice,P<:MonteCarloParameters,O<:AbstractObservables}
-        mc = new{T,P,O}(deepcopy(lattice), parameters, statistics, observables)
+            observables::O) where {
+            T <: Lattice, P <: MonteCarloParameters, O <: AbstractObservables}
+        mc = new{T, P, O}(deepcopy(lattice), parameters, statistics, observables)
         Random.seed!(mc.parameters.rng, mc.parameters.seed)
         return mc
     end
@@ -93,7 +94,7 @@ This is a wrapper around MonteCarlo and is used to store the
 multiple Monte Carlo structs and resources needed for distributed 
 computing during a Replica Exchange (Parallel tempering) run.
 """
-mutable struct MonteCarloExchange{T,A<:AbstractVector{MonteCarlo}}
+mutable struct MonteCarloExchange{T, A <: AbstractVector{MonteCarlo}}
     MonteCarloObjects::A
     betas::Vector{Float64}
     channelsUp::Vector{RemoteChannel{Channel{T}}}
@@ -115,11 +116,11 @@ Monte Carlo Constructors
 Constructor that uses reasonable defaults for MonteCarloParameters.
 """
 function MonteCarloParameters(
-    beta::Float64,
-    thermalizationSweeps::Int,
-    measurementSweeps::Int)
-
-    return MonteCarloParameters(beta=beta, thermalizationSweeps=thermalizationSweeps, measurementSweeps=measurementSweeps)
+        beta::Float64,
+        thermalizationSweeps::Int,
+        measurementSweeps::Int)
+    return MonteCarloParameters(beta = beta, thermalizationSweeps = thermalizationSweeps,
+        measurementSweeps = measurementSweeps)
 end
 
 """
@@ -129,7 +130,7 @@ end
 Constructor that generates a MonteCarloStatistics struct automatically.
 """
 function MonteCarlo(lattice::T, parameters::MonteCarloParameters,
-    observables::O) where {T<:Lattice,O<:AbstractObservables}
+        observables::O) where {T <: Lattice, O <: AbstractObservables}
     return MonteCarlo(lattice, parameters, MonteCarloStatistics(), observables)
 end
 
@@ -139,7 +140,7 @@ end
 Constructor that generates a MonteCarloStatistics struct and built-in 
 Observables struct automatically.
 """
-function MonteCarlo(lattice::T, parameters::MonteCarloParameters) where {T<:Lattice}
+function MonteCarlo(lattice::T, parameters::MonteCarloParameters) where {T <: Lattice}
     return MonteCarlo(lattice, parameters, MonteCarloStatistics(), Observables(lattice))
 end
 
@@ -205,22 +206,28 @@ Extend Base for Monte Carlo structs
 --------------------------------------------------------------------------------
 """
 
-function Base.:show(io::IO, mc::MonteCarlo{T}) where {T<:Lattice}
-    println(io, "MonteCarlo with β=$(mc.parameters.beta) and update function: $(mc.parameters.updateFunction)")
+function Base.:show(io::IO, mc::MonteCarlo{T}) where {T <: Lattice}
+    println(io,
+        "MonteCarlo with β=$(mc.parameters.beta) and update function: $(mc.parameters.updateFunction)")
 end
 
 function Base.:show(io::IO, parameters::MonteCarloParameters)
-    println(io, "MonteCarloParameters with β=$(parameters.beta) and update function: $(parameters.updateFunction)")
+    println(io,
+        "MonteCarloParameters with β=$(parameters.beta) and update function: $(parameters.updateFunction)")
 end
 
 function Base.:show(io::IO, statistics::MonteCarloStatistics)
     time = Dates.format(unix2datetime(statistics.initializationTime), "dd u yyyy HH:MM:SS")
     str = "MonteCarloStatistics with $(statistics.sweeps) Sweeps, initialized at $time\n"
     if !(statistics.attemptedLocalUpdatesTotal == 0)
-        str *= @sprintf("\tUpdate acceptance rate: %.2f%%\n", 100 * statistics.acceptedLocalUpdatesTotal / statistics.attemptedLocalUpdatesTotal)
+        str *= @sprintf("\tUpdate acceptance rate: %.2f%%\n",
+            100 *
+            statistics.acceptedLocalUpdatesTotal/statistics.attemptedLocalUpdatesTotal)
     end
     if !(statistics.attemptedReplicaExchangesTotal == 0)
-        str *= @sprintf("\tReplica acceptance rate: %.2f%%\n", 100 * statistics.acceptedReplicaExchangesTotal / statistics.attemptedReplicaExchangesTotal)
+        str *= @sprintf("\tReplica acceptance rate: %.2f%%\n",
+            100 *
+            statistics.acceptedReplicaExchangesTotal/statistics.attemptedReplicaExchangesTotal)
     end
     println(
         io,
@@ -230,7 +237,7 @@ end
 
 import Base: ==
 
-function ==(a::T, b::T) where {T<:Union{MonteCarloStatistics,MonteCarloParameters}}
+function ==(a::T, b::T) where {T <: Union{MonteCarloStatistics, MonteCarloParameters}}
     fields = fieldnames(T)
     status = true
     for field in fields
@@ -239,7 +246,7 @@ function ==(a::T, b::T) where {T<:Union{MonteCarloStatistics,MonteCarloParameter
     return status
 end
 
-function ==(a::T, b::T) where {T<:MonteCarlo}
+function ==(a::T, b::T) where {T <: MonteCarlo}
     fields = fieldnames(T)
     status = true
     for field in fields
@@ -266,7 +273,8 @@ Initialize the spin configuration of a lattice using the conicalUpdate method.
     cannot be used to reliably initialize a spin configuration unless it was already initialized 
     using a different method first. This method is provided only for consistency.
 """
-function initSpinConfiguration!(lattice::Lattice{D,N}, f::typeof(conicalUpdate), rng=Random.GLOBAL_RNG) where {D,N}
+function initSpinConfiguration!(lattice::Lattice{D, N}, f::typeof(conicalUpdate),
+        rng = Random.GLOBAL_RNG) where {D, N}
     @warn "Conical updates only work if the lattice is already initialized,
     using sphericalUpdate instead"
     for i in 1:length(lattice)
@@ -278,7 +286,8 @@ end
     function initSpinConfiguration!(lattice::Lattice{D,N}, f::Function, rng=Random.GLOBAL_RNG) where {D,N}
 Initialize the spin configuration of a lattice using the passed function.
 """
-function initSpinConfiguration!(lattice::Lattice{D,N}, f::Function, rng=Random.GLOBAL_RNG) where {D,N}
+function initSpinConfiguration!(
+        lattice::Lattice{D, N}, f::Function, rng = Random.GLOBAL_RNG) where {D, N}
     for i in 1:length(lattice)
         setSpin!(lattice, i, f(rng))
     end
@@ -289,7 +298,7 @@ end
 Initialize the spin configuration for a Monte Carlo struct by using the 
 function specified in MonteCarloParameters.
 """
-function initSpinConfiguration!(mc::MonteCarlo{T}) where {T<:Lattice}
+function initSpinConfiguration!(mc::MonteCarlo{T}) where {T <: Lattice}
     if (mc.parameters.sweep == 0) && mc.parameters.randomizeInitialConfiguration
         initSpinConfiguration!(mc.lattice, mc.parameters.updateFunction, mc.parameters.rng)
         mc.parameters.randomizeInitialConfiguration = false
@@ -306,7 +315,8 @@ localSweep functions
     function localUpdate(mc::MonteCarlo{T,P}, proposalSite::Int64, newSpinState::SVector{3,Float64}) where {T<:Lattice,P<:MonteCarloParameters}
 Performs a local update on the current spin configuration, using the proposed new spin state.
 """
-function localUpdate(mc::MonteCarlo{T,P}, proposalSite::Int64, newSpinState::SVector{3,Float64}) where {T<:Lattice,P<:MonteCarloParameters}
+function localUpdate(mc::MonteCarlo{T, P}, proposalSite::Int64,
+        newSpinState::SVector{3, Float64}) where {T <: Lattice, P <: MonteCarloParameters}
     energyDifference = getEnergyDifference(mc.lattice, proposalSite, newSpinState)
     #check acceptance of new configuration
     mc.statistics.attemptedLocalUpdates += 1
@@ -327,7 +337,7 @@ Performs a local sweep on the current spin configuration, using the function spe
 MonteCarloParameters. This covers only the case where the update function
 takes the rng as it's only parameter.
 """
-function localSweep(::Function, mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
+function localSweep(::Function, mc::MonteCarlo{T}, energy::Float64) where {T <: Lattice}
     for _ in 1:length(mc.lattice)
         site = rand(mc.parameters.rng, 1:length(mc.lattice))
         newSpinState = mc.parameters.updateFunction(mc.parameters.rng)
@@ -341,15 +351,18 @@ end
 Performs a local sweep on the current spin configuration using the conicalUpdate method. 
 This is a specialization of the method and not the general case.
 """
-function localSweep(::typeof(conicalUpdate), mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
+function localSweep(
+        ::typeof(conicalUpdate), mc::MonteCarlo{T}, energy::Float64) where {T <: Lattice}
     for _ in 1:length(mc.lattice)
         site = rand(mc.parameters.rng, 1:length(mc.lattice))
-        newSpinState = mc.parameters.updateFunction(getSpin(mc.lattice, site), mc.parameters.updateParameter, mc.parameters.rng)
+        newSpinState = mc.parameters.updateFunction(
+            getSpin(mc.lattice, site), mc.parameters.updateParameter, mc.parameters.rng)
         energy += localUpdate(mc, site, newSpinState)
     end
 
     #Conical update adapt parameter (cone angle)
-    adaptiveFactor = 0.5 / (1 - (mc.statistics.acceptedLocalUpdates / mc.statistics.attemptedLocalUpdates))
+    adaptiveFactor = 0.5 / (1 - (mc.statistics.acceptedLocalUpdates /
+                       mc.statistics.attemptedLocalUpdates))
     mc.parameters.updateParameter *= adaptiveFactor
     if mc.parameters.updateParameter > 1.0π
         mc.parameters.updateParameter = 1.0π
@@ -362,7 +375,7 @@ end
 Performs a local sweep on the current spin configuration using the method specified
 in MonteCarloParameters. This is the top-level method.
 """
-function localSweep(mc::MonteCarlo{T}, energy::Float64) where {T<:Lattice}
+function localSweep(mc::MonteCarlo{T}, energy::Float64) where {T <: Lattice}
     energy = localSweep(mc.parameters.updateFunction, mc, energy)
     mc.parameters.sweep += 1
     mc.statistics.sweeps += 1
@@ -380,12 +393,13 @@ microcanonicalSweep functions
 Performs a microcanonical (overrelaxation) sweep on the current spin configuration.
 This is particularly useful for low-temperature simulations where the spins get stuck.
 """
-function microcanonicalSweep!(lattice::Lattice{D,N}, rounds::Int, rng=Random.GLOBAL_RNG) where {D,N}
+function microcanonicalSweep!(
+        lattice::Lattice{D, N}, rounds::Int, rng = Random.GLOBAL_RNG) where {D, N}
     basisLength = length(lattice.unitcell)
     for _ in 1:rounds
         #Deterministic first iteration
         for i in 1:basisLength
-            sublatticeOrdered = range(i, length(lattice), step=basisLength)
+            sublatticeOrdered = range(i, length(lattice), step = basisLength)
             for site in sublatticeOrdered
                 newSpinState = microcanonicalRotation(lattice, site)
                 setSpin!(lattice, site, newSpinState)
@@ -393,7 +407,7 @@ function microcanonicalSweep!(lattice::Lattice{D,N}, rounds::Int, rng=Random.GLO
         end
         #Random second iteration
         for i in 1:basisLength
-            sublatticeOrdered = range(i, length(lattice), step=basisLength)
+            sublatticeOrdered = range(i, length(lattice), step = basisLength)
             for site in sublatticeOrdered
                 setSpin!(lattice, site, microcanonicalRotationRandom(lattice, site, rng))
             end
@@ -407,8 +421,9 @@ end
 Performs a microcanonical (overrelaxation) sweep on current spin configuration,
 based on parameters from MonteCarloParameters.
 """
-function microcanonicalSweep!(mc::MonteCarlo{T}) where {T<:Lattice}
-    return microcanonicalSweep!(mc.lattice, mc.parameters.microcanonicalRoundsPerSweep, mc.parameters.rng)
+function microcanonicalSweep!(mc::MonteCarlo{T}) where {T <: Lattice}
+    return microcanonicalSweep!(
+        mc.lattice, mc.parameters.microcanonicalRoundsPerSweep, mc.parameters.rng)
 end
 
 """
@@ -421,7 +436,8 @@ replicaExchange functions
     function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, betas::Vector{Float64}, channelsUp, channelsDown, label) where {T<:Lattice}
 Performs a replica exchange sweep based on parameters from the MonteCarlo object on the current worker.
 """
-function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, betas::Vector{Float64}, channelsUp, channelsDown, label) where {T<:Lattice}
+function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, betas::Vector{Float64},
+        channelsUp, channelsDown, label) where {T <: Lattice}
     #determine replica partner rank
     rank = myid() - 1
     numberWorkers = length(betas)
@@ -505,8 +521,11 @@ Creates the RemoteChannels required for worker-worker communication used in
 Replica Exchange (Parallel Tempering) runs.
 """
 function createChannels()
-    channelsUp = [fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid())) for i in procs()]
-    channelsDown = circshift([fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid())) for i in procs()], -1)
+    channelsUp = [fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid()))
+                  for i in procs()]
+    channelsDown = circshift(
+        [fetch(@spawnat i RemoteChannel(() -> Channel{Any}(1), myid())) for i in procs()],
+        -1)
     return (channelsUp, channelsDown)
 end
 
@@ -514,30 +533,37 @@ end
     function printStatistics!(mc::MonteCarlo{T}; replica=false) where {T<:Lattice}
 Print statistics from the current status of the MonteCarlo run.
 """
-function printStatistics!(mc::MonteCarlo{T}; replica=false) where {T<:Lattice}
+function printStatistics!(mc::MonteCarlo{T}; replica = false) where {T <: Lattice}
     t = time()
     if mc.parameters.sweep % mc.parameters.reportInterval == 0
         #collect statistics
         totalSweeps = mc.parameters.thermalizationSweeps + mc.parameters.measurementSweeps
         progress = 100.0 * mc.parameters.sweep / totalSweeps
-        thermalized = (mc.parameters.sweep >= mc.parameters.thermalizationSweeps) ? "YES" : "NO"
+        thermalized = (mc.parameters.sweep >= mc.parameters.thermalizationSweeps) ? "YES" :
+                      "NO"
         sweeprate = mc.statistics.sweeps / (t - mc.statistics.initializationTime)
         sweeptime = 1.0 / sweeprate
         eta = (totalSweeps - mc.parameters.sweep) / sweeprate
-        localUpdateAcceptanceRate = 100.0 * mc.statistics.acceptedLocalUpdates / mc.statistics.attemptedLocalUpdates
+        localUpdateAcceptanceRate = 100.0 * mc.statistics.acceptedLocalUpdates /
+                                    mc.statistics.attemptedLocalUpdates
 
         #print statistics
         str = ""
-        str *= @sprintf("Sweep %d / %d (%.1f%%)", mc.parameters.sweep, totalSweeps, progress)
-        str *= @sprintf("\t\tETA : %s\n", Dates.format(Dates.now() + Dates.Second(round(Int64, eta)), "dd u yyyy HH:MM:SS"))
+        str *= @sprintf("Sweep %d / %d (%.1f%%)", mc.parameters.sweep, totalSweeps,
+            progress)
+        str *= @sprintf("\t\tETA : %s\n",
+            Dates.format(
+                Dates.now() + Dates.Second(round(Int64, eta)), "dd u yyyy HH:MM:SS"))
         str *= @sprintf("\t\tthermalized : %s\n", thermalized)
         str *= @sprintf("\t\tsweep rate : %.1f sweeps/s\n", sweeprate)
-        str *= @sprintf("\t\tsweep duration : %.3f ms\n", sweeptime * 1000)
+        str *= @sprintf("\t\tsweep duration : %.3f ms\n", sweeptime*1000)
         str *= @sprintf("\t\tupdate acceptance rate: %.2f%%\n", localUpdateAcceptanceRate)
         str *= @sprintf("\t\tupdate parameter: %.3f \n", mc.parameters.updateParameter)
         if replica
-            str *= @sprintf("\t\treplica acceptanced : %.3f \n", mc.statistics.acceptedReplicaExchanges)
-            str *= @sprintf("\t\treplica attempted : %.3f \n", mc.statistics.attemptedReplicaExchanges)
+            str *= @sprintf("\t\treplica acceptanced : %.3f \n",
+                mc.statistics.acceptedReplicaExchanges)
+            str *= @sprintf("\t\treplica attempted : %.3f \n",
+                mc.statistics.attemptedReplicaExchanges)
         end
         str *= @sprintf("\n")
         print(str)
@@ -551,7 +577,8 @@ end
     function sanityChecks(mc::MonteCarlo{T}, outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
 Perform sanity checks on a MonteCarlo struct to prevent undefined behaviour during the run.
 """
-function sanityChecks(mc::MonteCarlo{T}, outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
+function sanityChecks(
+        mc::MonteCarlo{T}, outfile::Union{String, Nothing} = nothing) where {T <: Lattice}
     #init IO
     enableOutput = typeof(outfile) != Nothing
     if enableOutput
@@ -582,8 +609,8 @@ Monte Carlo run! Functions
     function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
 Dispatches run to perform a fixed-temperature Monte Carlo run.
 """
-function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {T<:Lattice}
-
+function run!(
+        mc::MonteCarlo{T}; outfile::Union{String, Nothing} = nothing) where {T <: Lattice}
     enableOutput = sanityChecks(mc, outfile)
 
     #init spin configuration
@@ -595,7 +622,8 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
 
     #launch Monte Carlo run
     lastCheckpointTime = time()
-    @printf("Simulation started on %s.\n\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
+    @printf("Simulation started on %s.\n\n",
+        Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
 
     while mc.parameters.sweep < totalSweeps
         #perform local sweep
@@ -617,11 +645,13 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
 
         #write checkpoint
         if enableOutput
-            checkpointPending = time() - lastCheckpointTime >= mc.parameters.checkpointInterval
+            checkpointPending = time() - lastCheckpointTime >=
+                                mc.parameters.checkpointInterval
             if checkpointPending
                 writeCheckpoint!(outfile, mc)
                 lastCheckpointTime = time()
-                @printf("Checkpoint written on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
+                @printf("Checkpoint written on %s.\n",
+                    Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
             end
         end
     end
@@ -632,7 +662,8 @@ function run!(mc::MonteCarlo{T}; outfile::Union{String,Nothing}=nothing) where {
     #write final checkpoint
     if enableOutput
         writeMonteCarlo!(outfile, mc)
-        @printf("Checkpoint written on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
+        @printf("Checkpoint written on %s.\n",
+            Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
     end
 
     #return
@@ -646,7 +677,7 @@ Anneals a given MonteCarlo object through the given array of betas
 without creating intermediate MonteCarloAnnealing and
 MonteCarlo objects.
 """
-function anneal!(mc::M, betas::Vector{Float64}) where {M<:MonteCarlo}
+function anneal!(mc::M, betas::Vector{Float64}) where {M <: MonteCarlo}
     measurementSweeps = mc.parameters.measurementSweeps
     measurementSweeps = 0
     for (i, b) in betas
@@ -658,7 +689,7 @@ function anneal!(mc::M, betas::Vector{Float64}) where {M<:MonteCarlo}
         if i == n
             mc.parameters.measurementSweeps = measurementSweeps
         end
-        run!(mc, outfile=nothing)
+        run!(mc, outfile = nothing)
     end
 end
 
@@ -666,14 +697,14 @@ end
     function run!(mcs::MonteCarloAnnealing; outfile::Union{String,Nothing}=nothing)
 Dispatches run to perform a Simulated Annealing run.
 """
-function run!(mcs::MonteCarloAnnealing; outfile::Union{String,Nothing}=nothing)
+function run!(mcs::MonteCarloAnnealing; outfile::Union{String, Nothing} = nothing)
     for (i, mc) in enumerate(mcs.MonteCarloObjects)
         if i != 1
             #If not the first simulation, copy spin configuration from the previous one
-            mcs.MonteCarloObjects[i].lattice = deepcopy(mcs.MonteCarloObjects[i-1]).lattice
+            mcs.MonteCarloObjects[i].lattice = deepcopy(mcs.MonteCarloObjects[i - 1]).lattice
         end
         out = outfile === nothing ? outfile : outfile * "." * string(i - 1)
-        run!(mc, outfile=out)
+        run!(mc, outfile = out)
     end
 end
 
@@ -681,10 +712,11 @@ end
     function run!(mcs::MonteCarloExchange, outfile::Union{String,Nothing}=nothing)
 Dispatches run to perform a Replica Exchange (Parallel Tempering) run.
 """
-function run!(mcs::MonteCarloExchange, outfile::Union{String,Nothing}=nothing)
+function run!(mcs::MonteCarloExchange, outfile::Union{String, Nothing} = nothing)
     workersList = workers()
     function sim(i)
-        return @spawnat workersList[i] run!(mcs.MonteCarloObjects[i], mcs.betas, mcs.channelsUp[i:i+1], mcs.channelsDown[i:i+1],
+        return @spawnat workersList[i] run!(mcs.MonteCarloObjects[i], mcs.betas,
+            mcs.channelsUp[i:(i + 1)], mcs.channelsDown[i:(i + 1)],
             (outfile === nothing ? outfile : outfile * "." * string(i - 1)))
     end
     results = map(sim, eachindex(workersList))
@@ -696,15 +728,17 @@ end
     channelsDown::Vector{RemoteChannel{Channel{C}}},
 Internal function used for parallel tempering runs.
 """
-function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{RemoteChannel{Channel{C}}},
-    channelsDown::Vector{RemoteChannel{Channel{C}}},
-    outfile::Union{String,Nothing}=nothing) where {T<:Lattice,C}
-
+function run!(mc::MonteCarlo{T}, betas::Vector{Float64},
+        channelsUp::Vector{RemoteChannel{Channel{C}}},
+        channelsDown::Vector{RemoteChannel{Channel{C}}},
+        outfile::Union{String, Nothing} = nothing) where {T <: Lattice, C}
     enableOutput = sanityChecks(mc, outfile)
     rank = myid() - 1
     nSimulations = nworkers()
-    labels = Vector{Int}(undef, floor(Int,
-        (mc.parameters.thermalizationSweeps + mc.parameters.measurementSweeps) / mc.parameters.replicaExchangeRate) + 1)
+    labels = Vector{Int}(undef,
+        floor(Int,
+            (mc.parameters.thermalizationSweeps + mc.parameters.measurementSweeps) /
+            mc.parameters.replicaExchangeRate) + 1)
     if rank == 1
         currentLabel = 1
     elseif rank == nSimulations
@@ -726,7 +760,8 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{Remo
     #launch Monte Carlo run
     lastCheckpointTime = time()
     if rank == 1
-        @printf("Simulation started on %s.\n\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
+        @printf("Simulation started on %s.\n\n",
+            Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
     end
 
     while mc.parameters.sweep < totalSweeps
@@ -741,8 +776,9 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{Remo
 
         #perform replica exchange
         if mc.parameters.sweep % mc.parameters.replicaExchangeRate == 0
-            energy, currentLabel = replicaExchange!(mc, energy, betas, channelsUp, channelsDown, currentLabel)
-            labels[floor(Int, mc.parameters.sweep / mc.parameters.replicaExchangeRate)+1] = currentLabel
+            energy, currentLabel = replicaExchange!(
+                mc, energy, betas, channelsUp, channelsDown, currentLabel)
+            labels[floor(Int, mc.parameters.sweep / mc.parameters.replicaExchangeRate) + 1] = currentLabel
             push!(mc.observables.labels, currentLabel)
         end
 
@@ -755,16 +791,18 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{Remo
 
         #runtime statistics
         if rank == 1
-            printStatistics!(mc, replica=true)
+            printStatistics!(mc, replica = true)
         end
 
         #write checkpoint
         if enableOutput
-            checkpointPending = time() - lastCheckpointTime >= mc.parameters.checkpointInterval
+            checkpointPending = time() - lastCheckpointTime >=
+                                mc.parameters.checkpointInterval
             if checkpointPending
                 writeCheckpoint!(outfile, mc)
                 lastCheckpointTime = time()
-                rank == 1 && @printf("Checkpoint written on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
+                rank == 1 && @printf("Checkpoint written on %s.\n",
+                    Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
             end
         end
     end
@@ -775,10 +813,12 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, channelsUp::Vector{Remo
     #write final checkpoint
     if enableOutput
         writeMonteCarlo!(outfile, mc)
-        rank == 1 && @printf("Checkpoint written on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
+        rank == 1 && @printf("Checkpoint written on %s.\n",
+            Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
     end
 
     #return
-    rank == 1 && @printf("Simulation finished on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
+    rank == 1 && @printf("Simulation finished on %s.\n",
+        Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
     return mc
 end

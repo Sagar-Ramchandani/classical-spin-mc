@@ -1,5 +1,4 @@
 @testset "UnitCell tests" begin
-
     """
     Checking creation of 1D, 2D and 3D UnitCell objects
     """
@@ -49,7 +48,8 @@
     Test warning for onsite interactions added via addInteraction
     """
 
-    @test_warn "Local Interaction detected, using setInteractionOnSite!() instead" addInteraction!(uc, 1, 1, @SMatrix(ones(3, 3)), (0, 0, 0))
+    @test_warn "Local Interaction detected, using setInteractionOnSite!() instead" addInteraction!(
+        uc, 1, 1, @SMatrix(ones(3, 3)), (0, 0, 0))
 
     """
     Test setting onsite interaction for all sites

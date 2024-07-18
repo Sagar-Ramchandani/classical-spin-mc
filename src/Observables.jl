@@ -6,44 +6,46 @@ using Statistics
     const BinnedObs
 Alias for a LogBinner storing a Float64.
 """
-const BinnedObs = LogBinner{Float64,32,BinningAnalysis.Variance{Float64}}
+const BinnedObs = LogBinner{Float64, 32, BinningAnalysis.Variance{Float64}}
 """
     const FullObs
 Alias for a FullBinner storing a Float64.
 """
-const FullObs = FullBinner{Float64,Vector{Float64}}
+const FullObs = FullBinner{Float64, Vector{Float64}}
 
 """
     const BinnedVectorObs
 Alias for a LogBinner storing a Vector{Float64}.
 """
-const BinnedVectorObs = LogBinner{Vector{Float64},32,BinningAnalysis.Variance{Vector{Float64}}}
+const BinnedVectorObs = LogBinner{
+    Vector{Float64}, 32, BinningAnalysis.Variance{Vector{Float64}}}
 """
     const FullVectorObs
 Alias for a FullBinner storing a Vector{Float64}.
 """
-const FullVectorObs = FullBinner{Vector{Float64},Vector{Vector{Float64}}}
+const FullVectorObs = FullBinner{Vector{Float64}, Vector{Vector{Float64}}}
 """
     const VectorObs
 Alias for either BinnedVectorObs or FullVectorObs.
 """
-const VectorObs = Union{BinnedVectorObs,FullVectorObs}
+const VectorObs = Union{BinnedVectorObs, FullVectorObs}
 
 """
     const BinnedMatrixObs
 Alias for LogBinner storing a Matrix{Float64}.
 """
-const BinnedMatrixObs = LogBinner{Matrix{Float64},32,BinningAnalysis.Variance{Matrix{Float64}}}
+const BinnedMatrixObs = LogBinner{
+    Matrix{Float64}, 32, BinningAnalysis.Variance{Matrix{Float64}}}
 """
     const FullMatrixObs
 Alias for FullBinner storing a Matrix{Float64}.
 """
-const FullMatrixObs = FullBinner{Matrix{Float64},Vector{Matrix{Float64}}}
+const FullMatrixObs = FullBinner{Matrix{Float64}, Vector{Matrix{Float64}}}
 """
     const MatrixObs
 Alias for either BinnedMatrixObs or FullMatrixObs.
 """
-const MatrixObs = Union{BinnedMatrixObs,FullMatrixObs}
+const MatrixObs = Union{BinnedMatrixObs, FullMatrixObs}
 
 """
     abstract type AbstractObservables
@@ -69,7 +71,7 @@ if the general function cannot handle those types.
 abstract type AbstractObservables end
 
 import Base: ==
-function ==(a::T, b::T) where {T<:AbstractObservables}
+function ==(a::T, b::T) where {T <: AbstractObservables}
     fields = fieldnames(T)
     status = true
     for field in fields
@@ -88,8 +90,8 @@ serves as a template for custom observable structs.
     the labels and replicaAcceptance fields are mandatory.
 """
 mutable struct Observables <: AbstractObservables
-    energy::ErrorPropagator{Float64,32}
-    specificHeat::Tuple{Float64,Float64}
+    energy::ErrorPropagator{Float64, 32}
+    specificHeat::Tuple{Float64, Float64}
     magnetization::BinnedObs
     magnetizationVector::VectorObs
     correlation::BinnedMatrixObs
@@ -105,7 +107,7 @@ end
     function Observables(lattice::T) where {T<:Lattice}
 Generates an Observables object for a given Lattice object.
 """
-function Observables(lattice::T) where {T<:Lattice}
+function Observables(lattice::T) where {T <: Lattice}
     return Observables(
         ErrorPropagator(Float64),
         (0.0, 0.0),
@@ -113,18 +115,19 @@ function Observables(lattice::T) where {T<:Lattice}
         LogBinner(zeros(Float64, 3)),
         LogBinner(zeros(Float64, lattice.length, length(lattice.unitcell))),
         Int64[],
-        Float64[],
+        Float64[]
     )
 end
 
 #Review this
-function getSpecificHeat(obs::O, β::Float64, N::Int64) where {O<:AbstractObservables}
+function getSpecificHeat(obs::O, β::Float64, N::Int64) where {O <: AbstractObservables}
     k = β * β * N
     c(e) = k * (e[2] - e[1] * e[1])
     ∇c(e) = [-2.0 * e[1] * k, k]
     heat = mean(obs.energy, c)
     reliableEnergyLevel = BinningAnalysis._reliable_level(obs.energy)
-    dheat = sqrt(abs(var(obs.energy, ∇c, reliableEnergyLevel)) / obs.energy.count[reliableEnergyLevel])
+    dheat = sqrt(abs(var(obs.energy, ∇c, reliableEnergyLevel)) /
+                 obs.energy.count[reliableEnergyLevel])
     return (heat, dheat)
 end
 
@@ -151,7 +154,8 @@ For every field (F) in observables, gets the method "get(F)" from Main.
 !!! note "Performance" This method is not performant since it calls a seperate method 
 for all observables regardless of any dependence between them.
 """
-function performMeasurements!(obs::O, lattice::T, energy::Float64) where {O<:AbstractObservables,T<:Lattice}
+function performMeasurements!(
+        obs::O, lattice::T, energy::Float64) where {O <: AbstractObservables, T <: Lattice}
     fields = fieldnames(O)
     for field in fields
         push!(getfield(obs, field), getfield(Main, Symbol("get" * String(field)))(lattice))
@@ -167,9 +171,11 @@ Performs measurements and is called during measurement sweeps.
     Since the current energy of the spin configuration is calculated as part of the 
     Monte Carlo sweep, it is passed on directly.
 """
-function performMeasurements!(observables::Observables, lattice::T, energy::Float64) where {T<:Lattice}
+function performMeasurements!(
+        observables::Observables, lattice::T, energy::Float64) where {T <: Lattice}
     #measure energy and energy^2
-    push!(observables.energy, energy / length(lattice), energy * energy / (length(lattice) * length(lattice)))
+    push!(observables.energy, energy / length(lattice),
+        energy * energy / (length(lattice) * length(lattice)))
 
     m = getMagnetization(lattice)
     mMagnitude = norm(m)
@@ -185,6 +191,7 @@ end
 Performs measurements and is called after all Monte Carlo sweeps are performed. 
 It is intended to do any post measurements based on the collect observables or final state of the system. 
 """
-function performPostMeasurements!(observables::Observables, lattice::T, β::Float64) where {T<:Lattice}
+function performPostMeasurements!(
+        observables::Observables, lattice::T, β::Float64) where {T <: Lattice}
     observables.specificHeat = getSpecificHeat(observables, β, size(lattice.spins, 1))
 end

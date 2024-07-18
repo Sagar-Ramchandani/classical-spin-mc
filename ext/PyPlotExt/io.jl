@@ -4,14 +4,14 @@ Common IO for all plots
 --------------------------------------------------------------------------------
 """
 
-function getFileNames(location; fileExtension="h5")
-    return filter((x) -> contains(x, fileExtension) && !isdir(x), readdir(location, join=true))
+function getFileNames(location; fileExtension = "h5")
+    return filter(
+        (x) -> contains(x, fileExtension) && !isdir(x), readdir(location, join = true))
 end
 
 function getFolderNames(location)
-    return filter(isdir, readdir(location, join=true))
+    return filter(isdir, readdir(location, join = true))
 end
-
 
 """
 --------------------------------------------------------------------------------
@@ -55,18 +55,18 @@ function loadObservables(fn::Vector{String}, obs::Vector{Symbol})
 end
 
 function processObservables!(temperatures::Vector{Float64}, β::Vector{Float64},
-    observables, obs, f; lowT=0.0, highT=0.0)
-
-    f["temperatures"] = lowT === highT ? temperatures : cropXY(temperatures, temperatures, lowT, highT)[1]
+        observables, obs, f; lowT = 0.0, highT = 0.0)
+    f["temperatures"] = lowT === highT ? temperatures :
+                        cropXY(temperatures, temperatures, lowT, highT)[1]
     f["properties"] = String.(obs)
     g = create_group(f, "observables")
     for (i, o) in enumerate(obs)
         h = create_group(g, String(o))
-        o = lowT === highT ? observables[:, i] : cropXY(temperatures, observables[:, i], lowT, highT)[2]
+        o = lowT === highT ? observables[:, i] :
+            cropXY(temperatures, observables[:, i], lowT, highT)[2]
         h["val"] = getfield.(o, :val)
         h["err"] = getfield.(o, :err)
     end
-
 end
 
 function processObservables!(fn::Vector{String}, obs::Vector{Symbol}, saveLocation::String)
@@ -77,7 +77,7 @@ function processObservables!(fn::Vector{String}, obs::Vector{Symbol}, saveLocati
 end
 
 function processObservables!(fn::Vector{Vector{String}}, obs::Vector{Symbol},
-    saveLocation::String)
+        saveLocation::String)
     data = [loadObservables(i, obs) for i in fn]
     temperatures = only(unique(getindex.(data, 1)))
     β = map(x -> 1 / x, temperatures)
@@ -100,7 +100,8 @@ function loadProcessedObservables(fn::String)
         properties = Symbol.(read(f["properties"]))
         β = map(x -> 1 / x, temperatures)
         g = f["observables"]
-        observables = Matrix{Measurement{Float64}}(undef, length(temperatures), length(properties))
+        observables = Matrix{Measurement{Float64}}(
+            undef, length(temperatures), length(properties))
         for (i, o) in enumerate(properties)
             h = g[String(o)]
             observables[:, i] = measurement.(read(h["val"]), read(h["err"]))
@@ -118,7 +119,7 @@ Functions for loading spins
 function getSpins(fn::String)
     h5open(fn, "r") do f
         s = read(f["mc/lattice/spins"])
-        spins = Vector{SVector{3,Float64}}(eachcol(s))
+        spins = Vector{SVector{3, Float64}}(eachcol(s))
         return spins
     end
 end
@@ -130,10 +131,11 @@ function getNSites(fn::String)
 end
 
 function groupSpins(nSites, spins)
-    groupedSpins = Vector{Vector{SVector{3,Float64}}}(undef, nSites)
+    groupedSpins = Vector{Vector{SVector{3, Float64}}}(undef, nSites)
     totalSpins = length(spins)
     for currentSite in 1:nSites
-        groupedSpins[currentSite] = map(i -> getindex(spins, i), currentSite:nSites:totalSpins)
+        groupedSpins[currentSite] = map(
+            i -> getindex(spins, i), currentSite:nSites:totalSpins)
     end
     return groupedSpins
 end

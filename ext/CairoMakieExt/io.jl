@@ -4,14 +4,14 @@ Common IO for all plots
 --------------------------------------------------------------------------------
 """
 
-function getFileNames(location; fileExtension="h5")
-    return filter((x) -> contains(x, fileExtension) && !isdir(x), readdir(location, join=true))
+function getFileNames(location; fileExtension = "h5")
+    return filter(
+        (x) -> contains(x, fileExtension) && !isdir(x), readdir(location, join = true))
 end
 
 function getFolderNames(location)
-    return filter(isdir, readdir(location, join=true))
+    return filter(isdir, readdir(location, join = true))
 end
-
 
 """
 --------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ function loadObservable(f::H5, obs::Symbol)
 end
 
 function loadObservables(fn::String, obs::Vector{Symbol})
-    observables = Vector{NTuple{2,Float64}}(undef, length(obs))
+    observables = Vector{NTuple{2, Float64}}(undef, length(obs))
     h5open(fn, "r") do f
         g = f["mc/observables"]
         for (i, o) in enumerate(obs)
@@ -42,7 +42,7 @@ function loadObservables(fn::Vector{String}, obs::Vector{Symbol})
     temperatures = map(inv, β)
     fn = fn[perm]
 
-    observables = Matrix{NTuple{2,Float64}}(undef, length(β), length(obs))
+    observables = Matrix{NTuple{2, Float64}}(undef, length(β), length(obs))
     for (j, file) in enumerate(fn)
         h5open(file, "r") do f
             g = f["mc/observables"]
@@ -63,7 +63,7 @@ Functions for loading spins
 function getSpins(fn::String)
     h5open(fn, "r") do f
         s = read(f["mc/lattice/spins"])
-        spins = Vector{SVector{3,Float64}}(eachcol(s))
+        spins = Vector{SVector{3, Float64}}(eachcol(s))
         return spins
     end
 end
@@ -75,10 +75,11 @@ function getNSites(fn::String)
 end
 
 function groupSpins(nSites, spins)
-    groupedSpins = Vector{Vector{SVector{3,Float64}}}(undef, nSites)
+    groupedSpins = Vector{Vector{SVector{3, Float64}}}(undef, nSites)
     totalSpins = length(spins)
     for currentSite in 1:nSites
-        groupedSpins[currentSite] = map(i -> getindex(spins, i), currentSite:nSites:totalSpins)
+        groupedSpins[currentSite] = map(
+            i -> getindex(spins, i), currentSite:nSites:totalSpins)
     end
     return groupedSpins
 end

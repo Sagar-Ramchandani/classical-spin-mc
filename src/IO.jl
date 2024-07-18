@@ -5,7 +5,7 @@ using Serialization
     const H5 = Union{HDF5.File,HDF5.Group}
 Used to define an alias for a HDF5 File or Group.
 """
-const H5 = Union{HDF5.File,HDF5.Group}
+const H5 = Union{HDF5.File, HDF5.Group}
 
 """
 --------------------------------------------------------------------------------
@@ -21,7 +21,9 @@ Interface function to write a MonteCarlo checkpoint.
     Checkpoints use Serialization and thus are not recommended for long term storage 
     as they may not be supported on a different Julia version.
 """
-function writeCheckpoint!(filename::String, mc::MonteCarlo{T,P,O}) where {T<:Lattice,P<:MonteCarloParameters,O<:AbstractObservables}
+function writeCheckpoint!(filename::String,
+        mc::MonteCarlo{T, P, O}) where {
+        T <: Lattice, P <: MonteCarloParameters, O <: AbstractObservables}
     h5open(filename, "w") do f
         data = IOBuffer()
         serialize(data, mc)
@@ -63,7 +65,7 @@ function writeUnitcell!(fn::H5, uc::UnitCell{D}) where {D}
     u["basis"] = reduce(hcat, uc.basis)
     u["interactionsField"] = reduce(hcat, uc.interactionsField)
     for i in 1:length(uc.basis)
-        u["interactionsOnsite/"*string(i)] = collect(uc.interactionsOnsite[i])
+        u["interactionsOnsite/" * string(i)] = collect(uc.interactionsOnsite[i])
     end
     #Writing two-site interactions
     interactions = create_group(u, "interactions")
@@ -88,18 +90,18 @@ function readUnitcell(fn::H5)
     u = fn["unitcell"]
     #Read primitive vectors and create unitcell
     D = read(u["D"])
-    primitive = NTuple{D,SVector{D,Float64}}(eachcol(read(u["primitive"])))
-    basis = Vector{SVector{D,Float64}}(eachcol(read(u["basis"])))
-    interactionsField = Vector{SVector{3,Float64}}(eachcol(read(u["interactionsField"])))
+    primitive = NTuple{D, SVector{D, Float64}}(eachcol(read(u["primitive"])))
+    basis = Vector{SVector{D, Float64}}(eachcol(read(u["basis"])))
+    interactionsField = Vector{SVector{3, Float64}}(eachcol(read(u["interactionsField"])))
 
     onsite = u["interactionsOnsite"]
-    interactionsOnsite = [SMatrix{3,3}(read(onsite[key])) for key in keys(onsite)]
+    interactionsOnsite = [SMatrix{3, 3}(read(onsite[key])) for key in keys(onsite)]
 
     inter = u["interactions"]
 
     interactions = [(read(inter["$(key)/b1"]) => read(inter["$(key)/b2"]),
-        NTuple{D,Int}(read(inter["$(key)/offset"])),
-        SMatrix{3,3,Float64,9}(read(inter["$(key)/M"])))
+                        NTuple{D, Int}(read(inter["$(key)/offset"])),
+                        SMatrix{3, 3, Float64, 9}(read(inter["$(key)/M"])))
                     for key in keys(inter)]
 
     anisotropyFunction = getfield(Main, Symbol(read(u["anisotropyFunction"])))
@@ -119,7 +121,7 @@ Saving and loading lattices
     function writeLattice!(fn::H5, lattice::Lattice{D,N}) where {D,N}
 Writes the Lattice in a H5 object.
 """
-function writeLattice!(fn::H5, lattice::Lattice{D,N}) where {D,N}
+function writeLattice!(fn::H5, lattice::Lattice{D, N}) where {D, N}
     """
     Only store information that cannot be reconstructed 
     with the lattice constructor
@@ -140,7 +142,7 @@ function readLattice(fn::H5)
     Reconstruct information using the lattice constructor
     """
     l = fn["lattice"]
-    spins = Vector{SVector{3,Float64}}(eachcol(read(l["spins"])))
+    spins = Vector{SVector{3, Float64}}(eachcol(read(l["spins"])))
     lattice = Lattice(readUnitcell(l), Tuple(read(l["L"])))
     lattice.spins = spins
     return lattice
@@ -266,24 +268,26 @@ function save!(fn::H5, path::String, mean::T, error::T) where {T}
     return nothing
 end
 
-function save!(fn::H5, path::String, meanerror::Tuple{Float64,Float64})
+function save!(fn::H5, path::String, meanerror::Tuple{Float64, Float64})
     save!(fn, path, meanerror...)
 end
 
 #Saving accumulator
-function save!(fn::H5, path::String, accumulators::NTuple{D,BinningAnalysis.Variance{T}}) where {D,T}
+function save!(fn::H5, path::String,
+        accumulators::NTuple{D, BinningAnalysis.Variance{T}}) where {D, T}
     for (i, accum) in enumerate(accumulators)
         acc = "$(path)/accumulators/$(i)/"
-        fn[acc*"δ"] = accum.δ
-        fn[acc*"m1"] = accum.m1
-        fn[acc*"m2"] = accum.m2
-        fn[acc*"count"] = accum.count
+        fn[acc * "δ"] = accum.δ
+        fn[acc * "m1"] = accum.m1
+        fn[acc * "m2"] = accum.m2
+        fn[acc * "count"] = accum.count
     end
     return nothing
 end
 
 #Saving compressor
-function save!(fn::H5, path::String, compressors::NTuple{D,BinningAnalysis.Compressor{T}}) where {D,T}
+function save!(fn::H5, path::String,
+        compressors::NTuple{D, BinningAnalysis.Compressor{T}}) where {D, T}
     for (i, comp) in enumerate(compressors)
         fn["$(path)/compressors/$(i)/switch"] = comp.switch
         fn["$(path)/compressors/$(i)/value"] = comp.value
@@ -292,7 +296,8 @@ function save!(fn::H5, path::String, compressors::NTuple{D,BinningAnalysis.Compr
 end
 
 #Saving EPCompressor
-function save!(fn::H5, path::String, compressors::NTuple{D,BinningAnalysis.EPCompressor{T}}) where {D,T}
+function save!(fn::H5, path::String,
+        compressors::NTuple{D, BinningAnalysis.EPCompressor{T}}) where {D, T}
     for (i, comp) in enumerate(compressors)
         fn["$(path)/compressors/$(i)/switch"] = comp.switch
         fn["$(path)/compressors/$(i)/values"] = comp.values
@@ -301,7 +306,7 @@ function save!(fn::H5, path::String, compressors::NTuple{D,BinningAnalysis.EPCom
 end
 
 #Saving ErrorPropagator
-function save!(fn::H5, path::String, observable::ErrorPropagator{T,D}) where {T,D}
+function save!(fn::H5, path::String, observable::ErrorPropagator{T, D}) where {T, D}
     save!(fn, path, means(observable)[1], std_errors(observable)[1])
     save!(fn, path, observable.compressors)
     fn["$(path)/sums1D"] = reduce(hcat, observable.sums1D)
@@ -311,7 +316,7 @@ function save!(fn::H5, path::String, observable::ErrorPropagator{T,D}) where {T,
 end
 
 #Saving LogBinner
-function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::LogBinner)
+function save!(fn::Union{HDF5.File, HDF5.Group}, path::String, observable::LogBinner)
     save!(fn, path, mean(observable), std_error(observable))
     save!(fn, path, observable.accumulators)
     save!(fn, path, observable.compressors)
@@ -319,14 +324,15 @@ function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::LogBin
 end
 
 #Saving FullBinner
-function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::FullBinner)
+function save!(fn::Union{HDF5.File, HDF5.Group}, path::String, observable::FullBinner)
     save!(fn, path, mean(observable), std_error(observable))
     fn["$(path)/values"] = reduce(hcat, observable.x)
     return nothing
 end
 
 #Saving Vector
-function save!(fn::Union{HDF5.File,HDF5.Group}, path::String, observable::Vector{T}) where {T<:Real}
+function save!(fn::Union{HDF5.File, HDF5.Group}, path::String,
+        observable::Vector{T}) where {T <: Real}
     save!(fn, path, mean(observable), std(observable))
     fn["$(path)/values"] = observable
     return nothing
@@ -346,7 +352,7 @@ function load(::Val{T}, fn::H5, path::String) where {T}
 end
 
 #Loading a vector
-function load(::Val{Vector{T}}, fn::H5, path::String) where {T<:Real}
+function load(::Val{Vector{T}}, fn::H5, path::String) where {T <: Real}
     return read(fn["$(path)/values"])
 end
 
@@ -357,9 +363,10 @@ function load(::Val{BinningAnalysis.Variance{T}}, fn::H5, path::String) where {T
     accums = Vector{BinningAnalysis.Variance{T}}(undef, Nindexes)
     for i in indexes
         acc = fn["$(path)/accumulators/$(i)/"]
-        accums[i] = BinningAnalysis.Variance(read(acc["δ"]), read(acc["m1"]), read(acc["m2"]), read(acc["count"]))
+        accums[i] = BinningAnalysis.Variance(
+            read(acc["δ"]), read(acc["m1"]), read(acc["m2"]), read(acc["count"]))
     end
-    return NTuple{Nindexes,BinningAnalysis.Variance{T}}(accums)
+    return NTuple{Nindexes, BinningAnalysis.Variance{T}}(accums)
 end
 
 #Loading compressor
@@ -371,7 +378,7 @@ function load(::Val{BinningAnalysis.Compressor{T}}, fn::H5, path::String) where 
         cp = fn["$(path)/compressors/$(i)/"]
         comps[i] = BinningAnalysis.Compressor(read(cp["value"]), read(cp["switch"]))
     end
-    return NTuple{Nindexes,BinningAnalysis.Compressor{T}}(comps)
+    return NTuple{Nindexes, BinningAnalysis.Compressor{T}}(comps)
 end
 
 #Loading EPCompressor
@@ -383,32 +390,35 @@ function load(::Val{BinningAnalysis.EPCompressor{T}}, fn::H5, path::String) wher
         cp = fn["$(path)/compressors/$(i)/"]
         comps[i] = BinningAnalysis.EPCompressor(read(cp["values"]), read(cp["switch"]))
     end
-    return NTuple{Nindexes,BinningAnalysis.EPCompressor{T}}(comps)
+    return NTuple{Nindexes, BinningAnalysis.EPCompressor{T}}(comps)
 end
 
 #Loading ErrorPropagator
-function load(::Val{ErrorPropagator{T,D}}, fn::H5, path::String) where {T,D}
+function load(::Val{ErrorPropagator{T, D}}, fn::H5, path::String) where {T, D}
     comp = load(Val(BinningAnalysis.EPCompressor{T}), fn, path)
     sums1D = eachcol(read(fn["$(path)/sums1D"]))
-    sums1D = NTuple{length(sums1D),Vector{T}}(sums1D)
+    sums1D = NTuple{length(sums1D), Vector{T}}(sums1D)
     sums2D = (read(fn["$(path)/sums2D"]))
     dimensions = size(sums2D, 1)
     sums2D = reshape(sums2D, dimensions, dimensions, :)
     dimensions = size(sums2D, 3)
-    sums2D = NTuple{dimensions,Matrix{T}}([Matrix{T}(sums2D[:, :, i]) for i in 1:dimensions])
+    sums2D = NTuple{dimensions, Matrix{T}}([Matrix{T}(sums2D[:, :, i])
+                                            for i in 1:dimensions])
     count = read(fn["$(path)/count"])
     return ErrorPropagator(comp, sums1D, sums2D, count)
 end
 
 #Loading LogBinner
-function load(::Val{LogBinner{T,D,V}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T,D,V}
+function load(::Val{LogBinner{T, D, V}}, fn::Union{HDF5.File, HDF5.Group},
+        path::String) where {T, D, V}
     accum = load(Val(BinningAnalysis.Variance{T}), fn, path)
     comp = load(Val(BinningAnalysis.Compressor{T}), fn, path)
-    return LogBinner{T,D}(comp, accum)
+    return LogBinner{T, D}(comp, accum)
 end
 
 #Loading FullBinner
-function load(::Val{FullBinner{T}}, fn::Union{HDF5.File,HDF5.Group}, path::String) where {T}
+function load(
+        ::Val{FullBinner{T}}, fn::Union{HDF5.File, HDF5.Group}, path::String) where {T}
     return FullBinner(T(ncols(read(fn["$(path)/values"]))))
 end
 
@@ -433,7 +443,7 @@ Saving and loading Observables
     function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables)
 Writes the built-in Observables in a H5 object.
 """
-function writeObservables!(fn::H5, obs::O) where {O<:AbstractObservables}
+function writeObservables!(fn::H5, obs::O) where {O <: AbstractObservables}
     o = create_group(fn, "observables")
     o["Type"] = String(Symbol(typeof(obs)))
 

@@ -20,7 +20,8 @@ pathEffects = pyimport("matplotlib.patheffects")
   function setSize(; width=columnWidth, fraction=1.0, subplots=(1, 1), ratio=(sqrt(5) - 1.0) / 2.0)
 Resize the figure to look better in LaTeX
 """
-function setSize(; width=columnWidth, fraction=1.0, subplots=(1, 1), ratio=(sqrt(5) - 1.0) / 2.0)
+function setSize(; width = columnWidth, fraction = 1.0,
+        subplots = (1, 1), ratio = (sqrt(5) - 1.0) / 2.0)
     widthPt = width * fraction
     inchesPerPoint = 1 / 72.27
     width = widthPt * inchesPerPoint
@@ -31,7 +32,7 @@ end
 function redefineColorScheme()
     #Paul Tol colours. see https://personal.sron.nl/~pault/
     colors = ["#4477AA", "#EE6677", "#228833", "#CCBB44", "#66CCEE", "#AA3377"]
-    rcParams["axes.prop_cycle"] = matplotlib.cycler(color=colors)
+    rcParams["axes.prop_cycle"] = matplotlib.cycler(color = colors)
     return colours
 end
 
