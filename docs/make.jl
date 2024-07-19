@@ -1,12 +1,7 @@
-using Documenter
-using ClassicalSpinMC
+using Documenter, ClassicalSpinMC
 
-makedocs(
-    sitename = "ClassicalSpinMC",
-    format = Documenter.HTML(repolink = "git@gitsrv-focal.thp.uni-koeln.de:sramchan/classical-spin-mc.git"),
-    modules = [ClassicalSpinMC],
-    repo = "git@gitsrv-focal.thp.uni-koeln.de:sramchan/classical-spin-mc.git"
-)
+makedocs(sitename = "ClassicalSpinMC")
+deploydocs(repo="github.com/Sagar-Ramchandani/classical-spin-mc.git")
 
 # Documenter can also automatically deploy documentation to gh-pages.
 # See "Hosting Documentation" and deploydocs() in the Documenter manual
