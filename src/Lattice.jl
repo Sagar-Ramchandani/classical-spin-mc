@@ -1,5 +1,3 @@
-using StaticArrays
-
 """
     struct Lattice
 

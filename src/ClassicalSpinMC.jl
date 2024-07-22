@@ -1,5 +1,8 @@
 module ClassicalSpinMC
 
+using StaticArrays, LinearAlgebra, Random, Dates, Printf, Distributed, BinningAnalysis,
+      Statistics, Measurements, HDF5, Serialization
+
 include("Unitcell.jl")
 export UnitCell, dimension, addInteraction!, setInteractionOnsite!, setField!,
        addBasisSite!, addAnisotropy!,

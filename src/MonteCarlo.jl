@@ -1,8 +1,3 @@
-using Random
-using Dates
-using Printf
-using Distributed
-
 """
     const updateParameterDict
 A dictionary used to lookup the initial parameters for 

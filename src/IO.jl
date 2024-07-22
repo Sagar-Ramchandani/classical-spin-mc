@@ -1,6 +1,3 @@
-using HDF5
-using Serialization
-
 """
     const H5 = Union{HDF5.File,HDF5.Group}
 Used to define an alias for a HDF5 File or Group.

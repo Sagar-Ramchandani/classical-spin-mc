@@ -1,7 +1,3 @@
-using Random
-using StaticArrays
-using LinearAlgebra
-
 """
 --------------------------------------------------------------------------------
 Spin update functions 

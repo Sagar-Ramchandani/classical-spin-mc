@@ -1,6 +1,3 @@
-using BinningAnalysis
-using Statistics
-
 #Defining Aliases for Observable Types
 """
     const BinnedObs
