@@ -426,11 +426,6 @@ function load(fn::H5, path::String)
 end
 
 """
-Functions below are experimental
-"""
-
-#NOTE: Change these to support AbstractObservables instead.
-"""
 --------------------------------------------------------------------------------
 Saving and loading Observables
 --------------------------------------------------------------------------------
@@ -438,7 +433,8 @@ Saving and loading Observables
 
 """
     function writeObservables!(fn::Union{HDF5.File,HDF5.Group}, obs::Observables)
-Writes the built-in Observables in a H5 object.
+Writes the observable type in a H5 object. 
+This is done by calling save! on each field.
 """
 function writeObservables!(fn::H5, obs::O) where {O <: AbstractObservables}
     o = create_group(fn, "observables")
@@ -456,7 +452,10 @@ end
 
 """
     function readObservables(fn::Union{HDF5.File,HDF5.Group})
-Reads the built-in Observables from a H5 object.
+Reads the observable type from a H5 object. 
+It assumes that the appropriate constructor for the saved 
+observable type exists. If no observable type is defined, 
+it switches to the built-in observables.
 """
 function readObservables(fn::H5)
     o = fn["observables"]
@@ -521,5 +520,171 @@ Reads the MonteCarlo object from a HDF5 file.
 function readMonteCarlo(filename::String)
     h5open(filename, "r") do f
         return readMonteCarlo(f)
+    end
+end
+
+"""
+--------------------------------------------------------------------------------
+File read IO
+--------------------------------------------------------------------------------
+"""
+
+function getFileNames(location::String; fileExtension = "h5")
+    return filter(
+        (x) -> contains(x, fileExtension) && !isdir(x), readdir(location, join = true))
+end
+
+function getFolderNames(location::String)
+    return filter(isdir, readdir(location, join = true))
+end
+
+"""
+--------------------------------------------------------------------------------
+Functions for reading observable as measurements
+--------------------------------------------------------------------------------
+"""
+
+function readObservable(f::H5, obs::Symbol)
+    g = open_group(f, String(obs))
+    return measurement(read_dataset(g, "mean"), read_dataset(g, "error"))
+end
+
+function readObservable(f::H5, obs::Vector{Symbol})
+    observables = Vector{Measurement{Float64}}(undef, length(obs))
+    for (i, o) in enumerate(obs)
+        observables[i] = loadObservable(f, o)
+    end
+    return observables
+end
+
+function readObservable(fn::String, obs::Vector{Symbol})
+    h5open(fn, "r") do f
+        g = f["mc/observables"]
+        return readObservable(g, obs)
+    end
+end
+
+function readObservable(
+        ::Val{:fixed_temperature}, fn::Vector{String}, obs::Vector{Symbol})
+    observables = Matrix{Measurement}(undef, 1, length(obs))
+    observables[1, :] .= mean(readObservable.(fn, Ref(obs)))
+    return observables
+end
+
+function readObservable(
+        ::Val{:changing_temperature}, fn::Vector{String}, obs::Vector{Symbol})
+    observables = Matrix{Measurement}(undef, length(fn), length(obs))
+    for (j, file) in enumerate(fn)
+        observables[j, :] .= readObservable(file, obs)
+    end
+    return observables
+end
+
+function readObservable(fn::Vector{String}, obs::Vector{Symbol})
+    β = map(i => h5read(i, "mc/parameters/beta"), fn)
+    perm = sortperm(β)
+    β = β[perm]
+    fn = fn[perm]
+    temperatures = unique(inv.(β))
+    if isone(length(temperatures))
+        return temperatures, readObservable(Val(:fixed_temperature), fn, obs)
+    elseif length(temperatures) == length(fn)
+        return temperatures, readObservable(Val(:changing_temperature), fn, obs)
+    else
+        error("Please limit files to (a) single β or (b) share no common β.")
+    end
+end
+
+"""
+--------------------------------------------------------------------------------
+Process observables to store in a compact file format.
+--------------------------------------------------------------------------------
+"""
+
+"""
+function processObservables!(
+        temperatures::Vector{Float64}, observables::Matrix{Measurement{T}},
+        obs::Vector{Symbol}, f::H5) where {T}
+
+Function to save an observables matrix into a H5 object.
+"""
+function processObservables!(
+        temperatures::Vector{Float64}, observables::Matrix{Measurement{T}},
+        obs::Vector{Symbol}, f::H5) where {T}
+    f["temperatures"] = temperatures
+    f["properties"] = String.(obs)
+    g = create_group(f, "observables")
+    for (i, o) in enumerate(obs)
+        h = create_group(g, String(o))
+        o = observables[:, i]
+        h["val"] = getfield.(o, :val)
+        h["err"] = getfield.(o, :err)
+    end
+end
+
+"""
+function processObservables!(fn::Vector{String}, obs::Vector{Symbol}, saveLocation::String)
+
+Function that reads data from a vector of filenames and then 
+saves them into a single HDF5 file. 
+Can be used to collect a mean observable for a single β across runs 
+or to collect an observable acrosss temperatures.
+"""
+function processObservables!(fn::Vector{String}, obs::Vector{Symbol}, saveLocation::String)
+    temperatures, observables = readObservable(fn, obs)
+    h5open(saveLocation, "w") do f
+        processObservables!(temperatures, observables, obs, f)
+    end
+end
+
+"""
+function processObservables!(fn::Vector{Vector{String}}, obs::Vector{Symbol},
+        saveLocation::String)
+    
+Function that reads data from a vector of vector of filenames and 
+then saves them into a single HDF5 file.
+
+Assumes that the files in the inner vector are a single run across temperatures 
+and the outer vector is iterating over a collection of runs.
+
+Please note that the collection of runs are assumed to have exactly the same 
+β values.
+"""
+function processObservables!(fn::Vector{Vector{String}}, obs::Vector{Symbol},
+        saveLocation::String)
+    data = [readObservable(i, obs) for i in fn]
+    temperatures = only(unique(getindex.(data, 1))) #Will error if the runs have different collection of β
+    observables = getindex.(data, 2)
+    meanObservables = Matrix{Measurement{Float64}}(undef, length(temperatures), length(obs))
+    for i in 1:size(meanObservables, 1)
+        for j in 1:size(meanObservables, 2)
+            meanObservables[i, j] = mean([o[i, j] for o in observables])
+        end
+    end
+    h5open(saveLocation, "w") do f
+        processObservables!(temperatures, meanObservables, obs, f)
+    end
+end
+
+"""
+function loadProcessedObservables(fn::String)
+
+Function that loads previously processed observables into memory. 
+Please note that since this is a compact representation of data, 
+all technical information about the run such as the amount of sweeps /
+number of runs is no longer retained.
+"""
+function loadProcessedObservables(fn::String)
+    h5open(fn) do f
+        temperatures = read(f["temperatures"])
+        properties = Symbol.(read(f["properties"]))
+        g = open_group(f, "observables")
+        observables = Matrix{Measurement{Float64}}(
+            undef, length(temperatures), length(properties))
+        for (i, o) in enumerate(properties)
+            h = open_group(g, String(o))
+            observables[:, i] = measurement.(read(h["val"]), read(h["err"]))
+        end
+        return temperatures, observables, properties
     end
 end
