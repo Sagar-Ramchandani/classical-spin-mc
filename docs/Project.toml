@@ -1,4 +1,5 @@
 [deps]
+ClassicalSpinMC = "87994c0c-bfe9-400f-b61d-c34225d69a2b"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 
 [compat]
