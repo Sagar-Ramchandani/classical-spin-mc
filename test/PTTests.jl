@@ -49,8 +49,8 @@ end
     m = MonteCarloExchange(
         MonteCarlo(
             triangularlattice, MonteCarloParameters(
-                beta = 2.0, thermalizationSweeps = 10_000,
-                measurementSweeps = 500_000, seed = UInt(0))
+                beta = 2.0, thermalizationSweeps = 25_000,
+                measurementSweeps = 100_000, seed = UInt(0))
         ),
         betas
     )
@@ -99,8 +99,8 @@ end
     m = MonteCarloExchange(
         MonteCarlo(
             honeycomblattice, MonteCarloParameters(
-                beta = 0.5, thermalizationSweeps = 100_000,
-                measurementSweeps = 2000_000, seed = UInt(0))
+                beta = 0.5, thermalizationSweeps = 50_000,
+                measurementSweeps = 100_000, seed = UInt(0))
         ),
         betas
     )
