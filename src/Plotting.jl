@@ -27,6 +27,8 @@ function plotArrow! end
 function saveFigure! end
 function copBase end
 
+function histObservable end
+
 """
 --------------------------------------------------------------------------------
 Higher-level function for common origin plots
@@ -107,5 +109,41 @@ function plotObservables! end
 function plotObservables end
 function plotMC! end
 function plotMC end
-function plotHist end
-function plotHistMultiple end
+
+"""
+--------------------------------------------------------------------------------
+Higher-level functions for Histograms
+--------------------------------------------------------------------------------
+"""
+
+function histObservable(::Val{I}, obs::T, bins) where {I, T}
+    error("A histogram method for data of dimensionality $(I) is not implemented")
+end
+
+function histObservable(obs::T, bins; kwargs...) where {T <: FullBinner}
+    dimensionality = length(first(obs.x))
+    histObservable(Val(dimensionality), obs.x, bins; kwargs...)
+end
+
+function histObservable(obs::Vector{T}, bins; kwargs...) where {T <: FullBinner}
+    dimensionality = only(unique(length.(first.(getfield.(obs, :x)))))
+    histObservable(Val(dimensionality), reduce(vcat, getfield.(obs, :x)), bins; kwargs...)
+end
+
+function histObservable(
+        fn::String, obs::Symbol; bins = 100, saveLocation = nothing, kwargs...)
+    h5open(fn) do f
+        o = load(f["mc/observables"], String(obs))
+        fig, axis = histObservable(o, bins; kwargs...)
+        !(saveLocation === nothing) && saveFigure!(saveLocation, axis)
+        return fig, axis
+    end
+end
+
+function histObservable(
+        fn::Vector{String}, obs::Symbol; bins = 100, saveLocation = nothing, kwargs...)
+    o = [load(h5open(f)["mc/observables"], String(obs)) for f in fn]
+    fig, axis = histObservable(o, bins; kwargs...)
+    !(saveLocation === nothing) && saveFigure!(saveLocation, axis)
+    return fig, axis
+end

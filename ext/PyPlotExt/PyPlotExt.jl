@@ -10,6 +10,7 @@ using PyCall, PyPlot, HDF5, StaticArrays, Statistics, Measurements
 
 import ClassicalSpinMC: defaultColor, defaultZOrder, sphereColor
 import ClassicalSpinMC: scatterVertices3D!, plotArrow!, copBase, saveFigure!
+import ClassicalSpinMC: histObservable
 
 function saveFigure!(location, axis; format = "pdf")
     savefig(location, format = format)
@@ -21,6 +22,7 @@ export scatterVertices3D!, plotArrow!, copBase, saveFigure!
 #include("plotMC.jl")
 #export plotBase, plotObservables!, plotObservables, plotMC!, plotMC
 
-#include("hists.jl")
+include("hists.jl")
+export histObservable
 #export plotHist
 end
