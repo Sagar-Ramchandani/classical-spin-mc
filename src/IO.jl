@@ -694,3 +694,23 @@ function loadProcessedObservables(fn::String)
         return temperatures, observables, properties
     end
 end
+
+"""
+--------------------------------------------------------------------------------
+Loading spin configurations
+--------------------------------------------------------------------------------
+"""
+
+getSpins(fn::String) = Vector{SVector{3, Float64}}(eachcol(h5read(fn, "mc/lattice/spins")))
+
+getNSites(fn::String) = size(h5read(fn, "mc/lattice/unitcell/basis"), 2)
+
+function groupSpins(nSites, spins)
+    groupedSpins = Vector{Vector{SVector{3, Float64}}}(undef, nSites)
+    totalSpins = length(spins)
+    for currentSite in 1:nSites
+        groupedSpins[currentSite] = map(
+            i -> getindex(spins, i), currentSite:nSites:totalSpins)
+    end
+    return groupedSpins
+end
