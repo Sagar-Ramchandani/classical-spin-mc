@@ -421,8 +421,9 @@ end
 
 #Loading FullBinner
 function load(
-        ::Val{FullBinner{T}}, fn::Union{HDF5.File, HDF5.Group}, path::String) where {T}
-    return FullBinner(T(ncols(read(open_dataset(fn, "$(path)/values")))))
+        ::Val{FullBinner{T, A}}, fn::Union{HDF5.File, HDF5.Group}, path::String) where {
+        T, A <: AbstractArray}
+    return FullBinner(collect.(eachcol(read_dataset(fn, "$(path)/values"))))
 end
 
 #Top-level load function
