@@ -1,10 +1,10 @@
 """
 --------------------------------------------------------------------------------
-Plots building blocks
+Building blocks for common origin plots
 --------------------------------------------------------------------------------
 """
 
-function plotArrow(
+function plotArrow!(
         ax, startPoint, endPoint; lengthRatio = 1, color = defaultColor, kwargs...)
     δ = endPoint - startPoint
     arrows!(ax, [[i] for i in startPoint]..., [[i] for i in δ]...,
@@ -65,86 +65,4 @@ function copBase(; arrowL = 0.0, limL = 1, init = (acos(1 / sqrt(3)), π / 4))
     (limL > 0.0) && limits!(axis, -limL, limL, -limL, limL, -limL, limL)
 
     return fig, axis
-end
-
-function plotSpins!(axis, spins; color = defaultColor, arrow = false, kwargs...)
-    scatterVertices3D!(axis, spins; color = color, kwargs...)
-    if arrow
-        for s in spins
-            plotArrow(axis, zeros(3), s, color = color)
-        end
-    end
-end
-
-function plotSpins(spins; arrow = false, kwargs...)
-    fig, axis = copBase()
-    plotSpins!(axis, spins, arrow = arrow; kwargs...)
-    return fig, axis
-end
-
-"""
---------------------------------------------------------------------------------
-Functions for common origin plots
---------------------------------------------------------------------------------
-"""
-
-function originPlot!(axis, fn; kwargs...)
-    spins = getSpins(fn)
-    nSites = getNSites(fn)
-    groupedSpins = groupSpins(nSites, spins)
-    map((x) -> plotSpins!(axis, x[1], color = x[2]; kwargs...),
-        zip(groupedSpins, XYZColors))
-end
-
-function originPlot(fn)
-    fig, axis = copBase(arrowL = 1.2)
-    originPlot!(axis, fn)
-    return fig, axis
-end
-
-function gsPlot!(axis, fileLocation; saveLocation = nothing, kwargs...)
-    filenames = getFileNames(fileLocation)
-    β = [h5read("$(fn)", "mc/parameters/beta") for fn in filenames]
-    perm = sortperm(β)
-    gs = last(filenames[perm])
-    originPlot!(axis, gs; kwargs...)
-    !(saveLocation === nothing) && save(fileLocation * "/cop.pdf", axis.scene)
-    return nothing
-end
-
-function gsPlot(fileLocation; saveLocation = nothing)
-    fig, axis = copBase(arrowL = 1.5)
-    gsPlot!(axis, fileLocation, saveLocation = saveLocation)
-    return fig, axis
-end
-
-function gsMultiple(location; saveLocation = nothing)
-    fn = getFolderNames(location)
-    fig, axis = copBase(arrowL = 1.5)
-    for i in eachindex(fn)
-        gsPlot!(axis, "$(fn[i])/")
-    end
-    !(saveLocation === nothing) && save(location * "/cop.pdf", axis.scene)
-    return fig, axis
-end
-
-function originPlotMultiple(location; saveLocation = nothing)
-    fn = getFolderNames(location)
-    filesPerFolder = getFileNames.(fn)
-    nRuns = length(first(filesPerFolder))
-    filesPerFolder = [[i[j] for i in filesPerFolder] for j in 1:nRuns]
-    figs = []
-    axises = []
-    for i in eachindex(filesPerFolder)
-        fig, axis = copBase(arrowL = 1.5)
-        for j in filesPerFolder[i]
-            originPlot!(axis, j)
-        end
-        push!(figs, fig)
-        push!(axises, figs)
-        !(saveLocation === nothing) &&
-            save(saveLocation * "/cop$(i).pdf", axis.scene, pt_per_unit = 246 / 600)
-        println(i)
-    end
-    return figs, axises
 end
