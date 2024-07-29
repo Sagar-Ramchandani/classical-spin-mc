@@ -421,8 +421,9 @@ end
 
 #Loading FullBinner
 function load(
-        ::Val{FullBinner{T}}, fn::Union{HDF5.File, HDF5.Group}, path::String) where {T}
-    return FullBinner(T(ncols(read(open_dataset(fn, "$(path)/values")))))
+        ::Val{FullBinner{T, A}}, fn::Union{HDF5.File, HDF5.Group}, path::String) where {
+        T, A <: AbstractArray}
+    return FullBinner(collect.(eachcol(read_dataset(fn, "$(path)/values"))))
 end
 
 #Top-level load function
@@ -558,7 +559,7 @@ end
 function readObservable(f::H5, obs::Vector{Symbol})
     observables = Vector{Measurement{Float64}}(undef, length(obs))
     for (i, o) in enumerate(obs)
-        observables[i] = loadObservable(f, o)
+        observables[i] = readObservable(f, o)
     end
     return observables
 end
@@ -587,7 +588,7 @@ function readObservable(
 end
 
 function readObservable(fn::Vector{String}, obs::Vector{Symbol})
-    β = map(i => h5read(i, "mc/parameters/beta"), fn)
+    β = map((i) -> h5read(i, "mc/parameters/beta"), fn)
     perm = sortperm(β)
     β = β[perm]
     fn = fn[perm]
@@ -693,4 +694,24 @@ function loadProcessedObservables(fn::String)
         end
         return temperatures, observables, properties
     end
+end
+
+"""
+--------------------------------------------------------------------------------
+Loading spin configurations
+--------------------------------------------------------------------------------
+"""
+
+getSpins(fn::String) = Vector{SVector{3, Float64}}(eachcol(h5read(fn, "mc/lattice/spins")))
+
+getNSites(fn::String) = size(h5read(fn, "mc/lattice/unitcell/basis"), 2)
+
+function groupSpins(nSites, spins)
+    groupedSpins = Vector{Vector{SVector{3, Float64}}}(undef, nSites)
+    totalSpins = length(spins)
+    for currentSite in 1:nSites
+        groupedSpins[currentSite] = map(
+            i -> getindex(spins, i), currentSite:nSites:totalSpins)
+    end
+    return groupedSpins
 end
