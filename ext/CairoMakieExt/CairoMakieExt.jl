@@ -1,25 +1,26 @@
 module CairoMakieExt
 
-using CairoMakie, HDF5, StaticArrays, Statistics, StatsBase
-#import ClassicalSpinMC: loadObservables, getSpins, groupSpins, copBase,
-#                        plotSpins, plotSpins!, originPlot, originPlot!, gsPlot, gsPlot!,
-#                        gsMultiple, originPlotMultiple,
-#                        plotObservables, plotMC, plotHist, plotHistMultiple
-import ClassicalSpinMC: defaultColor, defaultZOrder, sphereColor
+using CairoMakie, HDF5, StaticArrays, Statistics, StatsBase, LaTeXStrings
+
+import ClassicalSpinMC: defaultColor, defaultZOrder, sphereColor, errorColor,
+                        transitionColor, defaultMarker, defaultMarkerSize
 import ClassicalSpinMC: scatterVertices3D!, plotArrow!, saveFigure!, copBase
 import ClassicalSpinMC: histObservable
+import ClassicalSpinMC: extendLimits, plotBase, setTicks, plotLine!, plotProperty!,
+                        getXLimit, getYLimit, setXLimit, setYLimit, setYLabel, setTicks
 
-#include("constants.jl")
-#include("io.jl")
-#export loadObservables, getSpins, groupSpins
+function saveFigure!(location, axis)
+    save(location, axis.scene)
+end
 
 include("originPlot.jl")
 export scatterVertices3D!, plotArrow!, saveFigure!, copBase
-#export copBase, plotSpins, plotSpins!, originPlot, originPlot!, gsPlot, gsPlot!, gsMultiple
-#include("plotMC.jl")
-#export plotObservables, plotMC
+
+include("plotMC.jl")
+export setTicks, plotBase, plotLine!, plotProperty!, getXLimit, getYLimit, setXLimit,
+       setYLimit, setYLabel
+
 include("hists.jl")
 export histObservable
-#export plotHist, plotHistMultiple
 
 end

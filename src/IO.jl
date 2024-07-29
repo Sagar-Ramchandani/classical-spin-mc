@@ -559,7 +559,7 @@ end
 function readObservable(f::H5, obs::Vector{Symbol})
     observables = Vector{Measurement{Float64}}(undef, length(obs))
     for (i, o) in enumerate(obs)
-        observables[i] = loadObservable(f, o)
+        observables[i] = readObservable(f, o)
     end
     return observables
 end
@@ -588,7 +588,7 @@ function readObservable(
 end
 
 function readObservable(fn::Vector{String}, obs::Vector{Symbol})
-    β = map(i => h5read(i, "mc/parameters/beta"), fn)
+    β = map((i) -> h5read(i, "mc/parameters/beta"), fn)
     perm = sortperm(β)
     β = β[perm]
     fn = fn[perm]
