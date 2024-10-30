@@ -89,11 +89,12 @@ This is a wrapper around MonteCarlo and is used to store the
 multiple Monte Carlo structs and resources needed for distributed 
 computing during a Replica Exchange (Parallel tempering) run.
 """
-mutable struct MonteCarloExchange{T, A <: AbstractVector{MonteCarlo}}
+mutable struct MonteCarloExchange{T, M, A <: AbstractVector{MonteCarlo}}
     MonteCarloObjects::A
     betas::Vector{Float64}
     channelsUp::Vector{RemoteChannel{Channel{T}}}
     channelsDown::Vector{RemoteChannel{Channel{T}}}
+    exchangeMethod::Val{M}
 end
 
 """
@@ -172,13 +173,18 @@ end
 Constructor for generating a MonteCarloExchange struct used for 
 Replica Exchange (Parallel tempering) runs.
 
+Available methods are :parallel and :serial
+:serial offers better stability at the cost of performance.
+
+
 !!! warning "Available workers" 
     At the present time, this module uses workers 1:length(betas).
     Please verify that these workers are created and available before 
     creating this struct. At a future time, arbritary workers and 
     their automatic creation may be supported.
 """
-function MonteCarloExchange(mc::MonteCarlo, betas::Vector{Float64})
+
+function MonteCarloExchange(mc::MonteCarlo, betas::Vector{Float64}; method = :parallel)
     simulations = Vector{MonteCarlo}(undef, length(betas))
 
     #Check if betas are sorted in ascending order else sorted them
@@ -192,7 +198,7 @@ function MonteCarloExchange(mc::MonteCarlo, betas::Vector{Float64})
         simulations[i] = deepcopy(mc)
         simulations[i].parameters.beta = beta
     end
-    return MonteCarloExchange(simulations, betas, createChannels()...)
+    return MonteCarloExchange(simulations, betas, createChannels()..., Val(method))
 end
 
 """
@@ -429,9 +435,10 @@ replicaExchange functions
 
 """
     function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, betas::Vector{Float64}, channelsUp, channelsDown, label) where {T<:Lattice}
-Performs a replica exchange sweep based on parameters from the MonteCarlo object on the current worker.
+Performs a parallel replica exchange sweep based on parameters from the MonteCarlo object on the current worker.
 """
-function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, betas::Vector{Float64},
+function replicaExchange!(
+        ::Val{:parallel}, mc::MonteCarlo{T}, energy::Float64, betas::Vector{Float64},
         channelsUp, channelsDown, label) where {T <: Lattice}
     #determine replica partner rank
     rank = myid() - 1
@@ -482,6 +489,66 @@ function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, betas::Vector{Floa
         end
     end
     return (energy, label)
+end
+
+"""
+    function replicaExchange!(mc::MonteCarlo{T}, energy::Float64, betas::Vector{Float64}, channelsUp, channelsDown, label) where {T<:Lattice}
+Performs a serial replica exchange sweep based on parameters from the MonteCarlo object on the current worker.
+"""
+function replicaExchange!(
+        ::Val{:serial}, mc::MonteCarlo{T}, energy::Float64, betas::Vector{Float64},
+        channelsUp, channelsDown, label) where {T <: Lattice}
+    #determine replica partner rank
+    rank = myid() - 1
+    numberWorkers = length(betas)
+    if rank == numberWorkers
+        mc.statistics.attemptedReplicaExchanges += 1
+        partnerRank = rank - 1
+        chPut = channelsDown[1]
+        chTake = channelsUp[1]
+        partnerEnergy = take!(chTake)
+        p = exp((betas[partnerRank] - betas[rank]) * (partnerEnergy - energy))
+        exchangeAccepted = (rand(mc.parameters.rng) < min(1.0, p)) ? true : false
+        put!(chPut, exchangeAccepted)
+        if exchangeAccepted
+            put!(chPut, energy)
+            put!(chPut, mc.lattice.spins)
+            energy = partnerEnergy
+            mc.lattice.spins = take!(chTake)
+            mc.statistics.acceptedReplicaExchanges += 1
+        end
+    else
+        mc.statistics.attemptedReplicaExchanges += 1
+        partnerRank = rank + 1
+        chPut = channelsUp[2]
+        chTake = channelsDown[2]
+        put!(chPut, energy)
+        exchangeAccepted = take!(chTake)
+        if exchangeAccepted
+            put!(chPut, mc.lattice.spins)
+            energy = take!(chTake)
+            mc.lattice.spins = take!(chTake)
+            mc.statistics.acceptedReplicaExchanges += 1
+        end
+        if !(rank == 1)
+            mc.statistics.attemptedReplicaExchanges += 1
+            partnerRank = rank - 1
+            chPut = channelsDown[1]
+            chTake = channelsUp[1]
+            partnerEnergy = take!(chTake)
+            p = exp(-(betas[rank] - betas[partnerRank]) * (partnerEnergy - energy))
+            exchangeAccepted = (rand(mc.parameters.rng) < min(1.0, p)) ? true : false
+            put!(chPut, exchangeAccepted)
+            if exchangeAccepted
+                put!(chPut, energy)
+                put!(chPut, mc.lattice.spins)
+                energy = partnerEnergy
+                mc.lattice.spins = take!(chTake)
+                mc.statistics.acceptedReplicaExchanges += 1
+            end
+        end
+    end
+    return (energy, 0)
 end
 
 """
@@ -710,7 +777,8 @@ Dispatches run to perform a Replica Exchange (Parallel Tempering) run.
 function run!(mcs::MonteCarloExchange, outfile::Union{String, Nothing} = nothing)
     workersList = workers()
     function sim(i)
-        return @spawnat workersList[i] run!(mcs.MonteCarloObjects[i], mcs.betas,
+        return @spawnat workersList[i] run!(
+            mcs.MonteCarloObjects[i], mcs.betas, mcs.exchangeMethod,
             mcs.channelsUp[i:(i + 1)], mcs.channelsDown[i:(i + 1)],
             (outfile === nothing ? outfile : outfile * "." * string(i - 1)))
     end
@@ -723,7 +791,7 @@ end
     channelsDown::Vector{RemoteChannel{Channel{C}}},
 Internal function used for parallel tempering runs.
 """
-function run!(mc::MonteCarlo{T}, betas::Vector{Float64},
+function run!(mc::MonteCarlo{T}, betas::Vector{Float64}, method,
         channelsUp::Vector{RemoteChannel{Channel{C}}},
         channelsDown::Vector{RemoteChannel{Channel{C}}},
         outfile::Union{String, Nothing} = nothing) where {T <: Lattice, C}
@@ -771,7 +839,7 @@ function run!(mc::MonteCarlo{T}, betas::Vector{Float64},
 
         #perform replica exchange
         if mc.parameters.sweep % mc.parameters.replicaExchangeRate == 0
-            energy, currentLabel = replicaExchange!(
+            energy, currentLabel = replicaExchange!(method,
                 mc, energy, betas, channelsUp, channelsDown, currentLabel)
             labels[floor(Int, mc.parameters.sweep / mc.parameters.replicaExchangeRate) + 1] = currentLabel
             push!(mc.observables.labels, currentLabel)
