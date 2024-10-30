@@ -3,6 +3,9 @@
 *Markov chain Monte Carlo for 
 classical lattice spin models*
 
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://sagar-ramchandani.github.io/classical-spin-mc/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sagar-ramchandani.github.io/classical-spin-mc/dev/)
+
 This package aims to provide a flexible and performant implementation of the MCMC algorithm for classical lattice spin models.
 This project is a fork of [SpinMC.jl](https://github.com/fbuessen/SpinMC.jl)
 
