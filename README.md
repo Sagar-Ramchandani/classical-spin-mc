@@ -35,7 +35,7 @@ Conical updates sample around the current position of the spin on the unit spher
 
 The statistics for the measurements are provided using the
 [BinningAnalysis.jl](https://github.com/carstenbauer/BinningAnalysis.jl) package. By default, the package measures energy, specific heat, 
-magnetization and spin-spin correlation. This behavior can be extended, please see ... for this.
+magnetization and spin-spin correlation.
 
 For better tempering, the package implements simulated annealing 
 and parallel tempering. The latter of which uses [Distributed.jl](https://github.com/JuliaLang/Distributed.jl) allowing the sampling of large number of temperature points across multiple machines such 
