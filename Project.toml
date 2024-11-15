@@ -16,7 +16,6 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [weakdeps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
@@ -25,7 +24,7 @@ PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 
 [extensions]
-CairoMakieExt = ["CairoMakie","LaTeXStrings"]
+CairoMakieExt = ["CairoMakie", "LaTeXStrings"]
 PyPlotExt = ["PyCall", "PyPlot"]
 
 [compat]
@@ -44,5 +43,4 @@ Reexport = "1.2.2"
 Serialization = "1.10"
 StaticArrays = "1.9.7"
 Statistics = "1.10"
-StatsBase = "0.34.3"
 julia = "1.10"
